@@ -28,9 +28,9 @@ import {
 } from "lucide-react";
 import Wheel from "./Wheel";
 import WheelFitControls from "./WheelFitControls";
-import { clampDiameter, resizeDiameter, equalizeWheels } from "./wheelSizing";
+import { clampDiameter, equalizeWheels } from "./wheelSizing";
 import {
-  models,
+  models as baseModels,
   finishes,
   calipers,
   defaultWheels,
@@ -38,6 +38,7 @@ import {
 } from "./catalog";
 import { PhotoCatalog, findPhoto, type WheelPhoto } from "./PhotoCatalog";
 import PhotoUpload from "./PhotoUpload";
+import { wheelImage, hasDiscStyle, type DiscStyle } from "./brakeImages";
 import { generatedPhotos, mergePhotos, inlinePhoto } from "./generatedPhotos";
 import "./style.css";
 type User = { id: number; name: string; role: string };
@@ -73,7 +74,7 @@ function App() {
     [scanner, setScanner] = useState(0),
     [ai, setAi] = useState(false),
     [query, setQuery] = useState(""),
-    [enabled, setEnabled] = useState<number[]>(models.map((m) => m.id)),
+    [enabled, setEnabled] = useState<number[]>(baseModels.map((m) => m.id)),
     [projects, setProjects] = useState<Project[]>([]),
     [maintenance, setMaintenance] = useState<any[]>([]),
     [users, setUsers] = useState<any[]>([]),
@@ -82,6 +83,33 @@ function App() {
     [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<WheelPhoto[]>(generatedPhotos),
     [savedPhoto, setSavedPhoto] = useState<WheelPhoto | undefined>();
+  const [uploadOpen, setUploadOpen] = useState(false),
+    [discStyle, setDiscStyle] = useState<DiscStyle>("drilled"),
+    [brakeBusy, setBrakeBusy] = useState(false),
+    [brakesDirty, setBrakesDirty] = useState(false),
+    [submissions, setSubmissions] = useState<WheelPhoto[]>([]);
+  const models = [
+    ...baseModels,
+    ...Array.from(
+      new Map(
+        photos
+          .filter((p) => p.model >= 1000)
+          .map((p) => [
+            p.model,
+            {
+              id: p.model,
+              name: p.name || "Roda enviada",
+              subtitle: p.credit,
+              design: "photo",
+              spokes: 0,
+              lugs: 0,
+            },
+          ]),
+      ).values(),
+    ),
+  ];
+  const modelName = (id: number) =>
+    models.find((m) => m.id === id)?.name || "Roda enviada";
   const activePhoto =
     savedPhoto?.model === model &&
     savedPhoto?.finish === finish &&
@@ -93,18 +121,32 @@ function App() {
         );
   function chooseModel(id: number) {
     setModel(id);
+    setBrakesDirty(false);
     setSavedPhoto(undefined);
     const p = photos.find((p) => p.model === id);
     if (p) {
       setFinish(p.finish);
       setSize(p.size);
+      setDiscStyle(p.discStyle || "drilled");
+      setCaliper(p.caliperHue === 210 ? 5 : 4);
     }
   }
   useEffect(() => {
-    api("catalog/photos")
-      .then((rows) => setPhotos(mergePhotos(rows)))
-      .catch((e) => notify(e.message));
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const publicPhotos = await api("catalog/photos");
+        const own = user ? await api("my/photos") : [];
+        if (!cancelled) setPhotos(mergePhotos([...own, ...publicPhotos]));
+      } catch (e: any) {
+        if (!cancelled) notify(e.message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   useEffect(() => {
     if (!auth) return;
     const previous = document.activeElement as HTMLElement;
@@ -171,10 +213,14 @@ function App() {
         .then(setMaintenance)
         .catch((e) => notify(e.message));
     }
-    if (tab === "admin")
+    if (tab === "admin") {
       api("admin/users")
         .then(setUsers)
         .catch((e) => notify(e.message));
+      api("admin/photo-submissions")
+        .then(setSubmissions)
+        .catch((e) => notify(e.message));
+    }
   }, [tab, user]);
   async function upload(file?: File) {
     if (!file) return;
@@ -208,57 +254,10 @@ function App() {
       URL.revokeObjectURL(url);
     }
   }
-  const resizing = useRef<{
-    index: number;
-    pointer: number;
-    cx: number;
-    cy: number;
-    from: number;
-    start: number;
-    width: number;
-  } | null>(null);
   function setWheelDiameter(index: number, diameter: number) {
     setSelected(index);
     setEditing(true);
     setWheels((old) => equalizeWheels(old, diameter));
-  }
-  function startResize(
-    e: React.PointerEvent<HTMLButtonElement>,
-    index: number,
-  ) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!scene.current) return;
-    drag.current = null;
-    const r = scene.current.getBoundingClientRect(),
-      w = wheels[index],
-      cx = r.left + w.x * r.width,
-      cy = r.top + w.y * r.height;
-    resizing.current = {
-      index,
-      pointer: e.pointerId,
-      cx,
-      cy,
-      from: Math.hypot(e.clientX - cx, e.clientY - cy),
-      start: w.diameter,
-      width: r.width,
-    };
-    setSelected(index);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-  function moveResize(e: React.PointerEvent<HTMLButtonElement>) {
-    e.stopPropagation();
-    const r = resizing.current;
-    if (!r || r.pointer !== e.pointerId) return;
-    setWheelDiameter(
-      r.index,
-      resizeDiameter(
-        r.start,
-        r.from,
-        Math.hypot(e.clientX - r.cx, e.clientY - r.cy),
-        r.width,
-      ),
-    );
   }
   function updateWheel(p: Partial<Placement>) {
     if (p.diameter !== undefined) {
@@ -296,11 +295,74 @@ function App() {
       setBusy(false);
     }
   }
+  async function saveUploaded(p: Omit<WheelPhoto, "id">) {
+    const result = await api(
+      user?.role === "master" ? "admin/photos" : "my/photos",
+      p,
+    );
+    setPhotos((old) => [
+      result,
+      ...old.filter(
+        (x) =>
+          x.model !== result.model ||
+          x.finish !== result.finish ||
+          x.size !== result.size,
+      ),
+    ]);
+    setModel(result.model);
+    setFinish(result.finish);
+    setSize(result.size);
+    setSavedPhoto(undefined);
+    setDiscStyle("drilled");
+    setBrakesDirty(false);
+    setUploadOpen(false);
+    setTab("studio");
+  }
+  async function treatUpload(image: string, kind: "rim" | "assembly") {
+    return (await api("gemini/edit-wheel", { image, kind, action: "prepare" }))
+      .image;
+  }
+  async function applyBrakeAI() {
+    if (!activePhoto) return;
+    if (!user) {
+      setAuth(true);
+      return;
+    }
+    setBrakeBusy(true);
+    try {
+      const result = await api("gemini/edit-wheel", {
+        image: await inlinePhoto(activePhoto.image),
+        kind: activePhoto.kind || "assembly",
+        action: "brakes",
+        caliper,
+        discStyle,
+      });
+      setSavedPhoto({
+        ...activePhoto,
+        image: result.image,
+        solidImage: undefined,
+        caliperHue: undefined,
+        discStyle,
+        origin: "generated",
+      });
+      setBrakesDirty(false);
+      notify("Freios tratados por IA. Confira a prévia antes de salvar.");
+    } catch (e: any) {
+      notify(e.message);
+    } finally {
+      setBrakeBusy(false);
+    }
+  }
   async function save() {
     if (!activePhoto)
       return notify(
         "Este modelo ainda precisa de uma fotografia real no catálogo.",
       );
+    if (
+      !hasDiscStyle(activePhoto, discStyle) ||
+      (brakesDirty && activePhoto.caliperHue === undefined)
+    )
+      return notify("Aplique o tratamento por IA aos freios antes de salvar.");
     if (!user) return setAuth(true);
     if (!image) return notify("Carregue sua foto antes de salvar.");
     setSaving(true);
@@ -312,6 +374,7 @@ function App() {
           model,
           finish,
           caliper,
+          discStyle,
           angle,
           size,
           wheels,
@@ -319,6 +382,9 @@ function App() {
           photo: {
             ...activePhoto,
             image: await inlinePhoto(activePhoto.image),
+            solidImage: activePhoto.solidImage
+              ? await inlinePhoto(activePhoto.solidImage)
+              : undefined,
           },
         },
       });
@@ -349,7 +415,9 @@ function App() {
           for (const node of svg.querySelectorAll("image")) {
             node.setAttribute(
               "href",
-              await inlinePhoto(node.getAttribute("href") || ""),
+              await inlinePhoto(
+                await wheelImage(activePhoto, caliper, discStyle),
+              ),
             );
           }
           const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
@@ -396,6 +464,8 @@ function App() {
     setModel(d.model);
     setFinish(d.finish);
     setCaliper(d.caliper);
+    setDiscStyle(d.discStyle || "drilled");
+    setBrakesDirty(false);
     setAngle(d.angle);
     setSize(d.size);
     setWheels(equalizeWheels(d.wheels));
@@ -443,6 +513,7 @@ function App() {
               user
                 ? api("logout", {}).then(() => {
                     setUser(null);
+                    setPhotos(generatedPhotos);
                     setTab("studio");
                   })
                 : setAuth(true)
@@ -551,59 +622,17 @@ function App() {
                             onPointerCancel={() => (drag.current = null)}
                           >
                             <Wheel
-                              {...{ model, finish, caliper, angle, size }}
+                              {...{
+                                model,
+                                finish,
+                                caliper,
+                                angle,
+                                size,
+                                discStyle,
+                              }}
                               photo={activePhoto}
                               mounted
                             />
-                            {editing && (
-                              <>
-                                <span className="center-cross">+</span>
-                                <button
-                                  type="button"
-                                  className="wheel-resize-handle"
-                                  aria-label={
-                                    "Redimensionar roda " +
-                                    (i === 0 ? "esquerda" : "direita")
-                                  }
-                                  title="Arraste para ajustar o tamanho. Use as setas no teclado."
-                                  onPointerDown={(e) => startResize(e, i)}
-                                  onPointerMove={moveResize}
-                                  onPointerUp={(e) => {
-                                    e.stopPropagation();
-                                    resizing.current = null;
-                                  }}
-                                  onPointerCancel={(e) => {
-                                    e.stopPropagation();
-                                    resizing.current = null;
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (
-                                      [
-                                        "ArrowUp",
-                                        "ArrowRight",
-                                        "ArrowDown",
-                                        "ArrowLeft",
-                                      ].includes(e.key)
-                                    ) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setWheelDiameter(
-                                        i,
-                                        w.diameter +
-                                          (["ArrowUp", "ArrowRight"].includes(
-                                            e.key,
-                                          )
-                                            ? 1
-                                            : -1) *
-                                            0.0025,
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <span aria-hidden="true">↗</span>
-                                </button>
-                              </>
-                            )}
                           </div>
                         ))}
                     </div>
@@ -729,7 +758,7 @@ function App() {
                         </button>
                       ))}
                     </div>
-                    {(["x", "y", "diameter"] as const).map((k, i) => (
+                    {(["x", "y"] as const).map((k, i) => (
                       <label key={k}>
                         {
                           [
@@ -741,8 +770,8 @@ function App() {
                         <b>{Math.round(wheels[selected][k] * 100)}%</b>
                         <input
                           type="range"
-                          min={k === "diameter" ? 3 : 0}
-                          max={k === "diameter" ? 65 : 100}
+                          min={0}
+                          max={100}
                           step=".1"
                           value={wheels[selected][k] * 100}
                           onChange={(e) =>
@@ -789,16 +818,23 @@ function App() {
                       COM IMAGEM / {enabled.length} MODELOS
                     </span>
                   </div>
+                  <button
+                    className="light-button studio-upload"
+                    onClick={() => (user ? setUploadOpen(true) : setAuth(true))}
+                  >
+                    <ImagePlus size={17} />
+                    Enviar foto de roda
+                  </button>
                   <div className="model-current">
                     <div className="wheel-preview">
                       <Wheel
-                        {...{ model, finish, caliper, angle, size }}
+                        {...{ model, finish, caliper, angle, size, discStyle }}
                         photo={activePhoto}
                       />
                     </div>
                     <div>
-                      <h4>{models[model].name}</h4>
-                      <p>{models[model].subtitle}</p>
+                      <h4>{modelName(model)}</h4>
+                      <p>{models.find((m) => m.id === model)?.subtitle}</p>
                       <span className="outline-tag">
                         {activePhoto
                           ? activePhoto.origin === "generated"
@@ -811,13 +847,17 @@ function App() {
                   {activePhoto ? (
                     <p className="photo-source">
                       Origem:{" "}
-                      <a
-                        href={activePhoto.source}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {activePhoto.credit}
-                      </a>{" "}
+                      {activePhoto.source ? (
+                        <a
+                          href={activePhoto.source}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {activePhoto.credit}
+                        </a>
+                      ) : (
+                        <span>{activePhoto.credit}</span>
+                      )}{" "}
                       · aro {activePhoto.size}”
                     </p>
                   ) : (
@@ -839,7 +879,7 @@ function App() {
                     {models
                       .filter(
                         (m) =>
-                          enabled.includes(m.id) &&
+                          (enabled.includes(m.id) || m.id >= 1000) &&
                           (m.name + " " + m.subtitle)
                             .toLowerCase()
                             .includes(query.toLowerCase()),
@@ -972,14 +1012,73 @@ function App() {
                 <section>
                   <div className="label-heading">
                     <h3>
-                      <b>04</b> Freios da fotografia
+                      <b>04</b> Personalizar freios
                     </h3>
-                    <span>ORIGINAIS</span>
+                    <span>PRÉVIA VISUAL</span>
                   </div>
-                  <p className="photographic-brakes">
-                    Os freios são os visíveis na fotografia do conjunto. As
-                    cores e os detalhes permanecem originais.
-                  </p>
+                  <label className="brake-color-label">
+                    Cor da pinça <b>{calipers[caliper][0]}</b>
+                  </label>
+                  <div className="swatches calipers">
+                    {calipers.map(([name, color], i) => (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-label={"Pinça " + name}
+                        title={name}
+                        aria-pressed={caliper === i}
+                        className={caliper === i ? "swatch selected" : "swatch"}
+                        style={{ background: color }}
+                        onClick={() => {
+                          setCaliper(i);
+                          setBrakesDirty(true);
+                        }}
+                      >
+                        {caliper === i && <Check size={13} />}
+                      </button>
+                    ))}
+                  </div>
+                  <fieldset className="disc-options">
+                    <legend>Disco de freio</legend>
+                    {(["drilled", "solid"] as const).map((value) => (
+                      <label key={value}>
+                        <input
+                          type="radio"
+                          name="disc-style"
+                          value={value}
+                          checked={discStyle === value}
+                          onChange={() => {
+                            setDiscStyle(value);
+                            setBrakesDirty(true);
+                          }}
+                        />
+                        {value === "solid" ? "Liso, sem furos" : "Perfurado"}
+                      </label>
+                    ))}
+                  </fieldset>
+                  {activePhoto?.caliperHue !== undefined &&
+                  hasDiscStyle(activePhoto, discStyle) ? (
+                    <p className="photographic-brakes">
+                      Prévia aplicada às duas rodas. A cor mantém o relevo e as
+                      sombras da imagem.
+                    </p>
+                  ) : (
+                    <div className="brake-ai-apply">
+                      <p>
+                        Para esta foto, aplique as opções com IA e confira a
+                        prévia.
+                      </p>
+                      <button
+                        className="light-button"
+                        disabled={brakeBusy || !activePhoto}
+                        onClick={applyBrakeAI}
+                      >
+                        {brakeBusy
+                          ? "Tratando freios…"
+                          : "Aplicar freios com IA"}
+                      </button>
+                    </div>
+                  )}
                 </section>
                 <div className="save-area">
                   <label>
@@ -1083,7 +1182,7 @@ function App() {
                         </div>
                         <h3>{p.name}</h3>
                         <p>
-                          {models[p.payload.model].name} · {p.payload.size}”
+                          {modelName(p.payload.model)} · {p.payload.size}”
                         </p>
                         <p>{p.payload.notes}</p>
                         <div>
@@ -1265,53 +1364,82 @@ function App() {
                 ))}
                 <PhotoUpload
                   notify={notify}
-                  onSave={async (p) => {
-                    const result = await api("admin/photos", p);
-                    setPhotos((v) => [
-                      ...v.filter(
-                        (x) =>
-                          !(
-                            x.model === p.model &&
-                            x.finish === p.finish &&
-                            x.size === p.size
-                          ),
-                      ),
-                      result,
-                    ]);
-                  }}
+                  onSave={saveUploaded}
+                  onTreat={treatUpload}
+                  shared
                 />
+                <h2>Fotos enviadas por usuários</h2>
+                {submissions.length ? (
+                  submissions.map((p) => (
+                    <article className="submission" key={p.id}>
+                      <img src={p.image} alt={p.name || "Roda enviada"} />
+                      <div>
+                        <b>{p.name}</b>
+                        <p>{p.credit}</p>
+                        <button
+                          className="light-button"
+                          onClick={async () => {
+                            try {
+                              await api(
+                                "admin/photo-submissions/" + p.id + "/publish",
+                                {},
+                              );
+                              setSubmissions((old) =>
+                                old.filter((x) => x.id !== p.id),
+                              );
+                              setPhotos(
+                                mergePhotos(await api("catalog/photos")),
+                              );
+                              notify(
+                                "Foto publicada no catálogo compartilhado.",
+                              );
+                            } catch (e: any) {
+                              notify(e.message);
+                            }
+                          }}
+                        >
+                          Publicar no catálogo
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p>Nenhum envio aguardando publicação.</p>
+                )}
                 <h2 className="catalog-title">Catálogo público</h2>
                 <p>Ative ou oculte modelos disponíveis no estúdio.</p>
-                {models.map((m) => (
-                  <label className="catalog-admin" key={m.id}>
-                    <input
-                      type="checkbox"
-                      checked={enabled.includes(m.id)}
-                      onChange={async (e) => {
-                        const checked = e.target.checked;
-                        try {
-                          await api("admin/catalog", {
-                            id: m.id,
-                            enabled: checked,
-                          });
-                          setEnabled((v) =>
-                            checked
-                              ? [...v, m.id]
-                              : v.filter((id) => id !== m.id),
-                          );
-                        } catch (e: any) {
-                          notify(e.message);
-                        }
-                      }}
-                    />
-                    {m.name}
-                    <span>
-                      {m.subtitle} ·{" "}
-                      {photos.filter((p) => p.model === m.id).length} fotos
-                      reais
-                    </span>
-                  </label>
-                ))}
+                {models
+                  .filter((m) => m.id < 1000)
+                  .map((m) => (
+                    <label className="catalog-admin" key={m.id}>
+                      <input
+                        type="checkbox"
+                        checked={enabled.includes(m.id)}
+                        onChange={async (e) => {
+                          const checked = e.target.checked;
+                          try {
+                            await api("admin/catalog", {
+                              id: m.id,
+                              enabled: checked,
+                            });
+                            setEnabled((v) =>
+                              checked
+                                ? [...v, m.id]
+                                : v.filter((id) => id !== m.id),
+                            );
+                          } catch (e: any) {
+                            notify(e.message);
+                          }
+                        }}
+                      />
+                      {m.name}
+                      <span>
+                        {m.subtitle} ·{" "}
+                        {photos.filter((p) => p.model === m.id).length} fotos
+                        reais
+                      </span>
+                    </label>
+                  ))}
               </>
             )}
           </main>
@@ -1324,6 +1452,31 @@ function App() {
           <span>Imagine. Personalize. Faça acontecer.</span>
           <small>ESTÚDIO VIRTUAL AUTOMOTIVO</small>
         </footer>
+        {uploadOpen && (
+          <div className="modal-backdrop" onClick={() => setUploadOpen(false)}>
+            <section
+              className="upload-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Enviar foto de roda"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="close"
+                aria-label="Fechar envio de roda"
+                onClick={() => setUploadOpen(false)}
+              >
+                <X size={20} />
+              </button>
+              <PhotoUpload
+                notify={notify}
+                onSave={saveUploaded}
+                onTreat={treatUpload}
+                shared={user?.role === "master"}
+              />
+            </section>
+          </div>
+        )}
         {auth && (
           <div className="modal-backdrop" onClick={() => setAuth(false)}>
             <section

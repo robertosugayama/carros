@@ -17,12 +17,12 @@ Servidor Express e frontend na mesma porta, **3000** por padrão. Se estiver ocu
 
 O renderizador de rodas desenhadas e o carro ilustrado foram removidos. O estúdio começa pedindo uma foto real do veículo. Além das três opções originais geradas por IA, os 18 modelos de marcas são entradas de catálogo: **fotografias reais dos fabricantes ainda precisam ser obtidas e cadastradas**. Um modelo sem foto informa a pendência; nunca recebe desenho ou foto de outro produto como substituto.
 
-O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Catálogo fotográfico real**, com fonte e crédito obrigatórios. Há enquadramento circular e ajuste de centro/ampliação antes de salvar. PNG, JPEG e WebP são aceitos; imagens são normalizadas a WebP de 800 px com transparência fora do círculo.
+O botão **Enviar foto de roda** está no estúdio. Todo usuário autenticado pode enviar fotos para seu catálogo; o administrador pode aprová-las para publicação compartilhada. É possível criar um novo modelo com nome próprio, sem substituir os existentes. Fonte é opcional para fotos próprias, e o crédito usa o nome do usuário quando não informado. O master também pode cadastrar diretamente em **Admin → Catálogo fotográfico real**. Há enquadramento circular e ajuste de centro/ampliação antes de salvar. PNG, JPEG e WebP são aceitos; imagens são normalizadas a WebP de 800 px com transparência fora do círculo.
 
 - **Somente roda:** a fotografia frontal do fabricante substitui apenas a área do aro; o pneu real da foto do carro continua visível. O ajuste de aro altera a proporção visual da roda mantendo o conjunto externo fixo. Isso é uma estimativa visual, não medição física do pneu.
 - **Roda + pneu:** usa a fotografia completa do conjunto, disponível no aro fotografado. Não inventa um pneu em outros perfis.
 - Acabamentos só ficam disponíveis se houver fotografia correspondente. Não há filtros de recoloração para imitar cromado ou pintura real.
-- Freios são os registrados na fotografia. As pinças vetoriais e a recoloração artificial foram removidas; camadas fotográficas independentes de freio ainda não foram adicionadas.
+- As três rodas originais têm 11 cores de pinça e discos perfurados ou lisos. O disco liso usa uma variante fotográfica gerada por IA; a cor é aplicada aos pixels da pinça, preservando sombras. Em fotos enviadas sem separação dos componentes, use **Aplicar freios com IA** e revise o resultado. A simulação de cor não substitui uma amostra física de pintura.
 - O recorte mantém a proporção 1:1 e os pixels da foto. Imagens em perspectiva não devem ser cadastradas como frontais: não há achatamento para disfarçar o ângulo.
 - Zoom sincronizado, antes/depois, ajuste manual dos centros e diâmetros, câmera/galeria e exportação PNG continuam disponíveis.
 - Cada projeto guarda uma cópia da fotografia do produto. Atualizações do catálogo não substituem a fotografia de projetos salvos. Projetos antigos sem foto não recebem um desenho substituto.
@@ -32,7 +32,7 @@ O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Ca
 
 ## Ajustar o tamanho das rodas sobre a foto
 
-Depois de carregar a foto do carro, use **Ajustar tamanho das duas rodas**, logo abaixo da imagem. Um único controle altera o diâmetro das duas rodas juntas; os botões +/− permitem ajustes pequenos. As posições continuam independentes. Em modo de ajuste, arraste o centro para mover e a alça ↗ para aumentar ou diminuir. A alça também responde às setas do teclado e sempre redimensiona ambas as rodas. Projetos antigos e resultados da IA com tamanhos diferentes são equalizados pela média dos diâmetros, sem alterar os centros.
+Depois de carregar a foto do carro, use **Ajustar tamanho das duas rodas**, logo abaixo da imagem. Um único controle horizontal altera o diâmetro das duas rodas juntas. As posições continuam independentes. Para mover, arraste a roda. Não há alça verde, marcador de centro ou contorno sobre a foto. A barra horizontal também responde às setas do teclado. Projetos antigos e resultados da IA com tamanhos diferentes são equalizados pela média dos diâmetros, sem alterar os centros.
 
 O centro não muda durante o redimensionamento e a roda continua circular, inclusive com zoom. **Referência do aro** descreve o aro da imagem; para conjuntos completos fotografados/gerados ela não é o controle de encaixe na foto. O ajuste não exige cadastrar outra fotografia.
 
@@ -50,14 +50,14 @@ Saia e entre ou recarregue a página. O comando também funciona com banco remot
 
 Configure `GEMINI_API_KEY` somente no servidor. O modelo solicitado, `gemini-3.8-flash`, está configurado como padrão, mas **a disponibilidade desse identificador não foi confirmada**. Se ele não existir ou não estiver disponível na sua conta, defina `GEMINI_MODEL` com um identificador compatível disponível no Google AI Studio. Não há fallback silencioso para outro modelo. A ausência da chave e falhas da API são tratadas explicitamente; uma detecção real ainda não foi validada.
 
-A foto enviada é compartilhada com o serviço Gemini quando o usuário escolhe detectar com IA. Fotos manuais não são enviadas ao Gemini. A API valida posições normalizadas, diâmetros e aro retornados; fotos fora de perfil devem ser recusadas pelo modelo. Resultados da IA são estimativas revisáveis pelo usuário.
+A foto enviada é compartilhada com o serviço Gemini quando o usuário escolhe detectar com IA. Fotos enviadas manualmente não vão ao Gemini, exceto quando o usuário escolhe **Tratar foto com IA** ou **Aplicar freios com IA**. A API valida posições normalizadas, diâmetros e aro retornados; fotos fora de perfil devem ser recusadas pelo modelo. Resultados da IA são estimativas revisáveis pelo usuário.
 
 ## Vercel, passo a passo
 
 1. Envie **o conteúdo desta pasta** para o repositório que receberá o AutoTuner. Não misture os arquivos com o RodaBem. Se usar uma subpasta no GitHub, selecione essa subpasta em Root Directory na Vercel.
 2. Crie um banco no Turso e obtenha a URL `libsql://…` e um token.
 3. Na Vercel, importe o repositório, escolha framework **Vite**, Node **24.x**. `vercel.json` configura `npm run build`, saída `dist` e API Express em `api/index.ts`.
-4. Em Settings → Environment Variables, configure `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` (sensível). Para usar IA, configure também `GEMINI_API_KEY` (sensível) e confirme `GEMINI_MODEL`. Nunca use prefixo `VITE_` para segredos. Não envie chaves por chat, Git ou capturas de tela.
+4. Em Settings → Environment Variables, configure `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` (sensível). Para usar IA, configure também `GEMINI_API_KEY` (sensível). `GEMINI_MODEL` controla detecção, e `GEMINI_IMAGE_MODEL` controla tratamento/edição de imagens (padrão `gemini-2.5-flash-image`; confirme disponibilidade na sua conta). Nunca use prefixo `VITE_` para segredos. Não envie chaves por chat, Git ou capturas de tela.
 5. Faça o deploy e cadastre uma conta. Valide login, salvar/reabrir um projeto, registrar manutenção e sair/entrar novamente. Promova sua conta no banco remoto com o comando administrativo acima.
 
 As tabelas são criadas automaticamente. A Vercel exige banco remoto e ativa cookie Secure; nunca armazene a garagem em `/tmp`. Sem URL do banco, o servidor recusa iniciar na Vercel. Em desenvolvimento, o padrão é SQLite local em `data/app.db`; preserve essa pasta e faça backups. Não há migração automática de um banco local existente para o remoto.
@@ -87,3 +87,15 @@ O catálogo inclui três conjuntos originais de aparência fotográfica: **AT Si
 Os arquivos PNG transparentes estão em `public/wheels`, disponíveis mesmo antes de configurar o banco. Fotos reais cadastradas pelo master são preservadas e podem ampliar o catálogo. Para modelos de fabricantes, ainda faltam as fotos reais verificadas. Os conjuntos gerados representam visualmente aro 18 para a simulação; não certificam dimensão, material ou compatibilidade real.
 
 O catálogo agora reúne 18 referências pendentes de fotos e 3 opções originais prontas. Ao salvar, cada imagem é incorporada ao projeto em WebP; ao exportar PNG, as imagens externas do SVG são incorporadas antes de renderizar para evitar rodas ausentes no arquivo final.
+
+## Tratamento de novas fotos por IA
+
+1. Entre na conta e clique em **Enviar foto de roda**, no estúdio.
+2. Dê um nome, selecione uma foto frontal de uma única roda, o conteúdo (aro ou conjunto), aro e acabamento. Fotos próprias não exigem link externo.
+3. Clique em **Tratar foto com IA** para remover o fundo e enquadrar. Você também pode enquadrar manualmente, sem IA.
+4. Revise a imagem e confirme os dados antes de salvar. Imagens tratadas têm identificação de IA. As imagens originais não são substituídas automaticamente sem a confirmação.
+5. Usuários comuns guardam fotos no catálogo pessoal. O master publica os envios em **Admin → Fotos enviadas por usuários**. Usuários não podem sobrescrever o catálogo público de outros.
+
+`POST /api/gemini/edit-wheel` usa `@google/genai` para tratamento ou edição de freios; valida o raster antes da chamada, limita frequência, usa prazo de 45 segundos e normaliza a resposta com Sharp para WebP 800 px. Somente contas autenticadas podem chamar. Não publica automaticamente o resultado; o usuário deve revisar/salvar. Modelos gerados ou tratados por IA podem diferir do produto original, por isso a revisão é necessária.
+
+**Validação:** testes cobrem a ausência de chave e o processamento de uma resposta simulada. Uma chamada real ao Gemini de edição ainda não foi validada porque `GEMINI_API_KEY` não está presente neste ambiente. Ausência de chave, modelo indisponível, limites e falhas são informados; não são apresentados como tratamento bem-sucedido. As três variantes de disco liso já estão incluídas no app e não exigem esse serviço.

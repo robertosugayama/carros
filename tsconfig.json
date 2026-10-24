@@ -15,6 +15,7 @@
   "include": [
     "src",
     "server.ts",
+    "imageEditing.ts",
     "database.ts",
     "api",
     "promote.ts",

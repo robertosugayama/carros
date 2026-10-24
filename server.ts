@@ -1,4 +1,5 @@
 import express from "express";
+import { editWheelImage } from "./imageEditing.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
 import { db } from "./database.ts";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
@@ -12,14 +13,39 @@ await db.exec(
 await db.exec(
   `CREATE TABLE IF NOT EXISTS wheel_photos(id INTEGER PRIMARY KEY,model INTEGER,finish INTEGER,size INTEGER,image TEXT,source TEXT,credit TEXT,kind TEXT DEFAULT 'assembly',UNIQUE(model,finish,size));`,
 );
-if (
-  !(await db.prepare("PRAGMA table_info(wheel_photos)").all()).some(
-    (c) => c.name === "kind",
-  )
-)
-  await db.exec(
-    "ALTER TABLE wheel_photos ADD COLUMN kind TEXT DEFAULT 'assembly'",
-  );
+const extraColumns: { [key: string]: string } = {
+  kind: "TEXT DEFAULT 'assembly'",
+  name: "TEXT DEFAULT ''",
+  origin: "TEXT DEFAULT 'photograph'",
+  owner_id: "INTEGER",
+  public: "INTEGER DEFAULT 1",
+};
+const existingColumns = (
+  await db.prepare("PRAGMA table_info(wheel_photos)").all()
+).map((c) => c.name);
+for (const [column, definition] of Object.entries(extraColumns)) {
+  if (existingColumns.includes(column)) continue;
+  try {
+    await db.exec(
+      `ALTER TABLE wheel_photos ADD COLUMN ${column} ${definition}`,
+    );
+  } catch (error) {
+    // Another Vercel instance may have completed this same additive migration.
+    const current = (
+      await db.prepare("PRAGMA table_info(wheel_photos)").all()
+    ).map((c) => c.name);
+    if (!current.includes(column)) throw error;
+  }
+}
+const canUseModel = async (model: number, userId: number) =>
+  Number.isInteger(model) &&
+  model >= 0 &&
+  (model < models.length ||
+    !!(await db
+      .prepare(
+        "SELECT id FROM wheel_photos WHERE model=? AND (public=1 OR owner_id=?)",
+      )
+      .get(model, userId)));
 await db.exec(
   "INSERT OR IGNORE INTO catalog(id) VALUES " +
     models.map((m) => "(" + m.id + ")").join(",") +
@@ -53,6 +79,7 @@ const limits = new Map<string, { time: number; count: number }>();
 app.get("/api/status", async (_req, res) =>
   res.json({
     aiConfigured: !!process.env.GEMINI_API_KEY,
+    imageAiConfigured: !!process.env.GEMINI_API_KEY,
     model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
   }),
 );
@@ -62,7 +89,9 @@ app.get("/api/catalog", async (_req, res) =>
 app.get("/api/catalog/photos", async (_req, res) =>
   res.json(
     await db
-      .prepare("SELECT * FROM wheel_photos ORDER BY model,finish,size")
+      .prepare(
+        "SELECT * FROM wheel_photos WHERE public=1 ORDER BY model,finish,size",
+      )
       .all(),
   ),
 );
@@ -187,7 +216,7 @@ app.post("/api/projects", async (req, res) => {
     !payload.wheels.every(validPlacement) ||
     !Number.isInteger(payload.model) ||
     payload.model < 0 ||
-    payload.model >= models.length ||
+    !(await canUseModel(payload.model, res.locals.user.id)) ||
     !Number.isInteger(payload.finish) ||
     payload.finish < 0 ||
     payload.finish > 6 ||
@@ -215,13 +244,39 @@ app.post("/api/projects", async (req, res) => {
       p.finish !== payload.finish ||
       (p.kind !== "rim" && p.size !== payload.size) ||
       typeof p.source !== "string" ||
-      !/^https?:\/\//.test(p.source) ||
+      (p.source !== "" && !/^https?:\/\//.test(p.source)) ||
       typeof p.credit !== "string"
     )
       return res.status(400).json({
         error: "A fotografia não corresponde ao acabamento e aro do projeto.",
       });
   }
+  if (
+    payload.discStyle !== undefined &&
+    !["solid", "drilled"].includes(payload.discStyle)
+  )
+    return res.status(400).json({ error: "Tipo de disco inválido." });
+  if (
+    payload.photo?.solidImage !== undefined &&
+    (typeof payload.photo.solidImage !== "string" ||
+      payload.photo.solidImage.length > 900000 ||
+      !/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(
+        payload.photo.solidImage,
+      ))
+  )
+    return res.status(400).json({ error: "Imagem de disco inválida." });
+  if (
+    payload.photo?.caliperHue !== undefined &&
+    (!Number.isFinite(payload.photo.caliperHue) ||
+      payload.photo.caliperHue < 0 ||
+      payload.photo.caliperHue >= 360)
+  )
+    return res.status(400).json({ error: "Cor original da pinça inválida." });
+  if (
+    payload.photo?.discStyle !== undefined &&
+    !["solid", "drilled"].includes(payload.photo.discStyle)
+  )
+    return res.status(400).json({ error: "Tipo de disco da foto inválido." });
   payload.wheels = equalizeWheels(payload.wheels);
   const r = await db
     .prepare("INSERT INTO projects(user_id,name,payload) VALUES(?,?,?)")
@@ -271,6 +326,62 @@ app.post("/api/maintenance", async (req, res) => {
     );
   res.status(201).json({ ok: true });
 });
+app.get("/api/my/photos", async (_req, res) =>
+  res.json(
+    await db
+      .prepare(
+        "SELECT * FROM wheel_photos WHERE owner_id=? AND public=0 ORDER BY id DESC",
+      )
+      .all(res.locals.user.id),
+  ),
+);
+app.post("/api/my/photos", async (req, res) => savePhoto(req, res, false));
+const imageEditLimits = new Map<number, number>();
+app.post("/api/gemini/edit-wheel", async (req, res) => {
+  const { image, action, kind = "assembly", caliper, discStyle } = req.body;
+  if (
+    !["prepare", "brakes"].includes(action) ||
+    !["rim", "assembly"].includes(kind) ||
+    typeof image !== "string" ||
+    image.length > 3500000 ||
+    !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image) ||
+    (action === "brakes" &&
+      (!Number.isInteger(caliper) ||
+        caliper < 0 ||
+        caliper > 10 ||
+        !["solid", "drilled"].includes(discStyle)))
+  )
+    return res
+      .status(400)
+      .json({ error: "Confira a foto e as opções de tratamento." });
+  if (!process.env.GEMINI_API_KEY)
+    return res.status(503).json({
+      error:
+        res.locals.user.role === "master"
+          ? "Tratamento por IA não habilitado. Configure GEMINI_API_KEY e GEMINI_IMAGE_MODEL no servidor. O envio manual continua disponível."
+          : "Tratamento por IA não habilitado. Você pode enviar a foto e ajustar o enquadramento manualmente; consulte o administrador para ativar a IA.",
+    });
+  const last = imageEditLimits.get(res.locals.user.id) || 0;
+  if (Date.now() - last < 30000)
+    return res
+      .status(429)
+      .json({ error: "Aguarde 30 segundos entre tratamentos." });
+  imageEditLimits.set(res.locals.user.id, Date.now());
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const output = await editWheelImage(
+      image,
+      { action, kind, caliper, discStyle },
+      (request) => ai.models.generateContent(request),
+    );
+    res.json({ image: output, origin: "generated" });
+  } catch {
+    res.status(502).json({
+      error:
+        "A IA não concluiu o tratamento. Confira a chave, o modelo de imagem e a cota do serviço. Use uma foto frontal de uma única roda.",
+    });
+  }
+});
 app.use("/api/admin", (_req, res, next) => {
   if (res.locals.user.role !== "master")
     return res
@@ -296,14 +407,26 @@ app.post("/api/admin/users", async (req, res) => {
     .run(role, blocked ? 1 : 0, id);
   res.json({ ok: true });
 });
-app.post("/api/admin/photos", async (req, res) => {
-  const { model, finish, size, image, source, credit } = req.body;
-  const kind = req.body.kind || "assembly";
+async function savePhoto(
+  req: express.Request,
+  res: express.Response,
+  shared: boolean,
+) {
+  let {
+    model,
+    finish,
+    size,
+    image,
+    source = "",
+    credit = "",
+    name = "",
+  } = req.body;
+  const kind = req.body.kind || "assembly",
+    origin = req.body.origin === "generated" ? "generated" : "photograph";
+  const custom = model === -1 || !shared;
   if (
     !["rim", "assembly"].includes(kind) ||
-    !Number.isInteger(model) ||
-    model < 0 ||
-    model >= models.length ||
+    (!custom && !(await canUseModel(model, res.locals.user.id))) ||
     !Number.isInteger(finish) ||
     finish < 0 ||
     finish > 6 ||
@@ -314,21 +437,61 @@ app.post("/api/admin/photos", async (req, res) => {
     image.length > 900000 ||
     !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image) ||
     typeof source !== "string" ||
-    !/^https?:\/\//.test(source) ||
+    (source !== "" && !/^https?:\/\//.test(source)) ||
     source.length > 1000 ||
     typeof credit !== "string" ||
-    !credit.trim() ||
-    credit.length > 200
+    credit.length > 200 ||
+    typeof name !== "string" ||
+    name.length > 80 ||
+    (custom && !name.trim())
   )
     return res.status(400).json({
-      error: "Confira a foto, o modelo, o aro, o acabamento e a fonte.",
+      error:
+        "Confira nome, foto, acabamento e aro. A fonte é opcional para fotos próprias.",
     });
+  credit = credit.trim() || res.locals.user.name;
+  if (custom) {
+    const result = await db
+      .prepare(
+        "INSERT INTO wheel_photos(model,finish,size,image,source,credit,kind,name,origin,owner_id,public) VALUES((SELECT 1000+COALESCE(MAX(id),0)+1 FROM wheel_photos),?,?,?,?,?,?,?,?,?,?)",
+      )
+      .run(
+        finish,
+        size,
+        image,
+        source,
+        credit,
+        kind,
+        name.trim(),
+        origin,
+        res.locals.user.id,
+        shared ? 1 : 0,
+      );
+    return res
+      .status(201)
+      .json(
+        await db
+          .prepare("SELECT * FROM wheel_photos WHERE id=?")
+          .get(Number(result.lastInsertRowid)),
+      );
+  }
   await db
     .prepare(
-      "INSERT INTO wheel_photos(model,finish,size,image,source,credit,kind) VALUES(?,?,?,?,?,?,?) ON CONFLICT(model,finish,size) DO UPDATE SET image=excluded.image,source=excluded.source,credit=excluded.credit,kind=excluded.kind",
+      "INSERT INTO wheel_photos(model,finish,size,image,source,credit,kind,name,origin,owner_id,public) VALUES(?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(model,finish,size) DO UPDATE SET image=excluded.image,source=excluded.source,credit=excluded.credit,kind=excluded.kind,name=excluded.name,origin=excluded.origin,owner_id=excluded.owner_id,public=1",
     )
-    .run(model, finish, size, image, source, credit.trim(), kind);
-  res
+    .run(
+      model,
+      finish,
+      size,
+      image,
+      source,
+      credit,
+      kind,
+      name.trim(),
+      origin,
+      res.locals.user.id,
+    );
+  return res
     .status(201)
     .json(
       await db
@@ -337,6 +500,24 @@ app.post("/api/admin/photos", async (req, res) => {
         )
         .get(model, finish, size),
     );
+}
+app.post("/api/admin/photos", async (req, res) => savePhoto(req, res, true));
+app.get("/api/admin/photo-submissions", async (_req, res) =>
+  res.json(
+    await db
+      .prepare(
+        "SELECT p.*,u.name AS author FROM wheel_photos p JOIN users u ON u.id=p.owner_id WHERE p.public=0 ORDER BY p.id DESC",
+      )
+      .all(),
+  ),
+);
+app.post("/api/admin/photo-submissions/:id/publish", async (req, res) => {
+  const result = await db
+    .prepare("UPDATE wheel_photos SET public=1 WHERE id=? AND public=0")
+    .run(Number(req.params.id));
+  if (!result.changes)
+    return res.status(404).json({ error: "Envio não encontrado." });
+  res.json({ ok: true });
 });
 app.post("/api/admin/catalog", async (req, res) => {
   const { id, enabled } = req.body;

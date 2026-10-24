@@ -1,5 +1,4 @@
 import type { Placement } from "./catalog";
-import { clampDiameter } from "./wheelSizing";
 export default function WheelFitControls({
   wheels,
   onChange,
@@ -13,21 +12,13 @@ export default function WheelFitControls({
       <div>
         <h3 id="wheel-fit-title">Ajustar tamanho das duas rodas</h3>
         <p>
-          As duas rodas aumentam e diminuem juntas. Arraste a alça ↗ de qualquer
-          uma para ajustar o tamanho. Arraste o centro para posicionar cada
-          roda.
+          As duas rodas aumentam e diminuem juntas pela barra horizontal. Para
+          posicionar cada roda, arraste sua imagem.
         </p>
       </div>
       <div className="wheel-fit-control">
         <label htmlFor="wheel-fit-both">Tamanho das duas rodas na foto</label>
         <div>
-          <button
-            type="button"
-            aria-label="Diminuir as duas rodas"
-            onClick={() => onChange(0, clampDiameter(diameter - 0.005))}
-          >
-            −
-          </button>
           <input
             id="wheel-fit-both"
             aria-label="Tamanho das duas rodas na foto"
@@ -38,13 +29,6 @@ export default function WheelFitControls({
             value={diameter * 100}
             onChange={(e) => onChange(0, Number(e.target.value) / 100)}
           />
-          <button
-            type="button"
-            aria-label="Aumentar as duas rodas"
-            onClick={() => onChange(0, clampDiameter(diameter + 0.005))}
-          >
-            +
-          </button>
         </div>
       </div>
     </section>

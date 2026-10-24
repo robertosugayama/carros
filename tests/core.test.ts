@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { createClient } from "@libsql/client";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -23,6 +24,11 @@ test("catálogo e geometria física", () => {
 });
 test("contas, projetos isolados, manutenção e permissões", async () => {
   const dir = mkdtempSync(join(tmpdir(), "autotuner-"));
+  const legacy = createClient({ url: "file:" + join(dir, "app.db") });
+  await legacy.executeMultiple(
+    "CREATE TABLE wheel_photos(id INTEGER PRIMARY KEY,model INTEGER,finish INTEGER,size INTEGER,image TEXT,source TEXT,credit TEXT,UNIQUE(model,finish,size));INSERT INTO wheel_photos(model,finish,size,image,source,credit) VALUES(13,1,18,'data:image/png;base64,aGVsbG8=','https://example.com/legacy','Legacy fixture');",
+  );
+  legacy.close();
   const port = 36000 + Math.floor(Math.random() * 1000);
   const env = {
     ...process.env,
@@ -70,6 +76,12 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
         cookie: r.headers.get("set-cookie")?.split(";")[0],
       };
     };
+    const migrated = (await req("catalog/photos")).data.find(
+      (p: any) => p.model === 13,
+    );
+    assert.equal(migrated.credit, "Legacy fixture");
+    assert.equal(migrated.kind, "assembly");
+    assert.equal(migrated.public, 1);
     const a = await req("auth/register", {
       name: "Ana",
       email: "ana@example.com",
@@ -160,6 +172,75 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       (await req("admin/users", undefined, a.cookie)).data.length,
       2,
     );
+    const ownPhoto = {
+      model: -1,
+      name: "Roda própria",
+      finish: 1,
+      size: 18,
+      kind: "rim",
+      image: "data:image/png;base64,aGVsbG8=",
+      source: "",
+      credit: "",
+    };
+    const own = await req("my/photos", ownPhoto, b.cookie);
+    assert.equal(own.status, 201);
+    assert.ok(own.data.model >= 1000);
+    assert.equal((await req("my/photos", undefined, b.cookie)).data.length, 1);
+    assert.equal((await req("my/photos", undefined, a.cookie)).data.length, 0);
+    assert.ok(
+      !(await req("catalog/photos")).data.some(
+        (p: any) => p.id === own.data.id,
+      ),
+    );
+    assert.equal(
+      (
+        await req(
+          "projects",
+          {
+            name: "Minha roda",
+            payload: { ...payload, model: own.data.model, photo: own.data },
+          },
+          b.cookie,
+        )
+      ).status,
+      201,
+    );
+    assert.equal(
+      (
+        await req(
+          "projects",
+          {
+            name: "Não autorizada",
+            payload: { ...payload, model: own.data.model, photo: own.data },
+          },
+          a.cookie,
+        )
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await req(
+          "admin/photo-submissions/" + own.data.id + "/publish",
+          {},
+          a.cookie,
+        )
+      ).status,
+      200,
+    );
+    assert.ok(
+      (await req("catalog/photos")).data.some((p: any) => p.id === own.data.id),
+    );
+    assert.equal(
+      (
+        await req(
+          "gemini/edit-wheel",
+          { action: "prepare", kind: "rim", image: ownPhoto.image },
+          a.cookie,
+        )
+      ).status,
+      503,
+    );
     const photo = {
       model: 14,
       finish: 1,
@@ -180,7 +261,9 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       400,
     );
     assert.equal((await req("admin/photos", photo, a.cookie)).status, 201);
-    const realPhoto = (await req("catalog/photos")).data[0];
+    const realPhoto = (await req("catalog/photos")).data.find(
+      (p: any) => p.model === 14,
+    );
     assert.equal(realPhoto.image, photo.image);
     assert.equal(
       (
@@ -232,17 +315,6 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
     await new Promise<void>((resolve) => child.once("exit", () => resolve()));
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("redimensionar roda mantém escala normalizada sob zoom e respeita limites", async () => {
-  const { resizeDiameter } = await import("../src/wheelSizing.ts");
-  const normal = resizeDiameter(0.16, 100, 120, 800);
-  const zoomed = resizeDiameter(0.16, 200, 240, 1600);
-  assert.ok(normal > 0.16);
-  assert.equal(normal, zoomed);
-  assert.equal(resizeDiameter(0.16, 100, 0, 800), 0.03);
-  assert.equal(resizeDiameter(0.16, 0, 1000, 800), 0.65);
-  assert.equal(resizeDiameter(0.16, 0, 100, 0), 0.16);
 });
 
 test("tamanho único preserva centros, corrige legado e não altera entrada", async () => {

@@ -655,7 +655,16 @@ function App() {
                     <h3>
                       <b>01</b> Modelo de roda
                     </h3>
-                    <span>{new Set(photos.map(p=>p.model).filter(id=>enabled.includes(id))).size} COM FOTO / {enabled.length} MODELOS</span>
+                    <span>
+                      {
+                        new Set(
+                          photos
+                            .map((p) => p.model)
+                            .filter((id) => enabled.includes(id)),
+                        ).size
+                      }{" "}
+                      COM FOTO / {enabled.length} MODELOS
+                    </span>
                   </div>
                   <div className="model-current">
                     <div className="wheel-preview">
@@ -686,8 +695,8 @@ function App() {
                     </p>
                   ) : (
                     <p className="photo-required">
-                      Não há fotografia deste conjunto neste acabamento e aro.
-                      Cadastre a imagem no painel master para experimentar.
+                      Este conjunto ainda não tem fotografia neste acabamento e
+                      aro. Escolha um modelo com foto disponível.
                     </p>
                   )}
                   <div className="search">
@@ -826,9 +835,8 @@ function App() {
                     <span>ORIGINAIS</span>
                   </div>
                   <p className="photographic-brakes">
-                    Os freios visíveis pertencem à fotografia original do
-                    conjunto. Recoloração e pinças desenhadas foram removidas
-                    para preservar o realismo.
+                    Os freios são os visíveis na fotografia do conjunto. As
+                    cores e os detalhes permanecem originais.
                   </p>
                 </section>
                 <div className="save-area">

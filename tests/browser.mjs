@@ -94,13 +94,11 @@ try {
   await photoForm
     .getByRole("combobox", { name: "Modelo da fotografia", exact: true })
     .selectOption("14");
-  await photoForm
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "technical-fixture.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(fixture, "base64"),
-    });
+  await photoForm.locator("input[type=file]").setInputFiles({
+    name: "technical-fixture.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(fixture, "base64"),
+  });
   await photoForm
     .getByLabel("Link da fonte")
     .fill("https://example.com/test-fixture");
@@ -147,7 +145,10 @@ try {
   await page.getByRole("button", { name: "Ver original" }).click();
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
   await page.getByRole("button", { name: "Ver depois" }).click();
-  if (!(await page.locator(".manual").isVisible())) await page.getByRole("button", { name: "Ajustar rodas", exact: true }).click();
+  if (!(await page.locator(".manual").isVisible()))
+    await page
+      .getByRole("button", { name: "Ajustar rodas", exact: true })
+      .click();
   await page.getByRole("button", { name: "Roda direita", exact: true }).click();
   await page.getByRole("slider", { name: "Diâmetro do conjunto" }).fill("25");
   box = await page.locator(".wheel-overlay").last().boundingBox();
@@ -158,8 +159,15 @@ try {
       .isDisabled(),
     true,
   );
-  await page.getByRole("slider", {name:"Tamanho do aro"}).fill("20");
-  assert.ok(Number(await page.locator(".wheel-overlay svg image").first().getAttribute("width"))<1000);
+  await page.getByRole("slider", { name: "Tamanho do aro" }).fill("20");
+  assert.ok(
+    Number(
+      await page
+        .locator(".wheel-overlay svg image")
+        .first()
+        .getAttribute("width"),
+    ) < 1000,
+  );
   const href = await page
     .locator(".wheel-overlay svg image")
     .first()

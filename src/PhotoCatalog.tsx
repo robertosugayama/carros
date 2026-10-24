@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 export type WheelPhoto = {
+  origin?: "generated" | "photograph";
   id: number;
   model: number;
   finish: number;

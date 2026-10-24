@@ -17,6 +17,9 @@ export const models = [
   ["RS / GT OEM", "Replica · Diamantada", "split", 5, 5],
   ["Vossen CVT", "Directional Sport", "turbine", 10, 5],
   ["Vossen Split-5", "Concave Luxury", "split", 5, 5],
+  ["AT Silver Split", "Original AutoTuner · Gerada por IA", "photo", 5, 5],
+  ["AT Graphite Six", "Original AutoTuner · Gerada por IA", "photo", 6, 5],
+  ["AT Bronze Mesh", "Original AutoTuner · Gerada por IA", "photo", 10, 5],
 ].map(([name, subtitle, design, spokes, lugs], id) => ({
   id,
   name: String(name),

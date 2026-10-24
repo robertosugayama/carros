@@ -182,7 +182,7 @@ app.post("/api/projects", async (req, res) => {
     !payload.wheels.every(validPlacement) ||
     !Number.isInteger(payload.model) ||
     payload.model < 0 ||
-    payload.model > 17 ||
+    payload.model >= models.length ||
     !Number.isInteger(payload.finish) ||
     payload.finish < 0 ||
     payload.finish > 6 ||
@@ -213,11 +213,9 @@ app.post("/api/projects", async (req, res) => {
       !/^https?:\/\//.test(p.source) ||
       typeof p.credit !== "string"
     )
-      return res
-        .status(400)
-        .json({
-          error: "A fotografia não corresponde ao acabamento e aro do projeto.",
-        });
+      return res.status(400).json({
+        error: "A fotografia não corresponde ao acabamento e aro do projeto.",
+      });
   }
   const r = await db
     .prepare("INSERT INTO projects(user_id,name,payload) VALUES(?,?,?)")
@@ -299,7 +297,7 @@ app.post("/api/admin/photos", async (req, res) => {
     !["rim", "assembly"].includes(kind) ||
     !Number.isInteger(model) ||
     model < 0 ||
-    model > 17 ||
+    model >= models.length ||
     !Number.isInteger(finish) ||
     finish < 0 ||
     finish > 6 ||
@@ -316,11 +314,9 @@ app.post("/api/admin/photos", async (req, res) => {
     !credit.trim() ||
     credit.length > 200
   )
-    return res
-      .status(400)
-      .json({
-        error: "Confira a foto, o modelo, o aro, o acabamento e a fonte.",
-      });
+    return res.status(400).json({
+      error: "Confira a foto, o modelo, o aro, o acabamento e a fonte.",
+    });
   await db
     .prepare(
       "INSERT INTO wheel_photos(model,finish,size,image,source,credit,kind) VALUES(?,?,?,?,?,?,?) ON CONFLICT(model,finish,size) DO UPDATE SET image=excluded.image,source=excluded.source,credit=excluded.credit,kind=excluded.kind",
@@ -341,7 +337,7 @@ app.post("/api/admin/catalog", async (req, res) => {
   if (
     !Number.isInteger(id) ||
     id < 0 ||
-    id > 17 ||
+    id >= models.length ||
     typeof enabled !== "boolean"
   )
     return res.status(400).json({ error: "Dados inválidos." });

@@ -15,7 +15,7 @@ Servidor Express e frontend na mesma porta, **3000** por padrão. Se estiver ocu
 
 ## Provador fotográfico
 
-O renderizador de rodas desenhadas e o carro ilustrado foram removidos. O estúdio começa pedindo uma foto real do veículo. Os 18 modelos são entradas de catálogo: **fotografias reais dos fabricantes ainda precisam ser obtidas e cadastradas**. Um modelo sem foto informa a pendência; nunca recebe desenho ou foto de outro produto como substituto.
+O renderizador de rodas desenhadas e o carro ilustrado foram removidos. O estúdio começa pedindo uma foto real do veículo. Além das três opções originais geradas por IA, os 18 modelos de marcas são entradas de catálogo: **fotografias reais dos fabricantes ainda precisam ser obtidas e cadastradas**. Um modelo sem foto informa a pendência; nunca recebe desenho ou foto de outro produto como substituto.
 
 O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Catálogo fotográfico real**, com fonte e crédito obrigatórios. Há enquadramento circular e ajuste de centro/ampliação antes de salvar. PNG, JPEG e WebP são aceitos; imagens são normalizadas a WebP de 800 px com transparência fora do círculo.
 
@@ -73,3 +73,11 @@ O teste de navegador usa Chromium instalado em `/usr/bin/chromium`; ajuste `exec
 A montagem é 2D com fotografias reais, sem reconstrução tridimensional. Não verifica furação, offset, folgas ou homologação. Consulte um especialista antes da instalação. O nome de cada produto deve ser conferido na fonte do fabricante antes de cadastrar sua imagem; os nomes existentes no catálogo não comprovam correspondência sem a fotografia.
 
 As fotos completas são armazenadas no banco nesta versão. Para muitos modelos/variantes e alto tráfego, use armazenamento de objetos e miniaturas. Configure backups, rate limiting compartilhado, política de privacidade/retensão e recuperação de senha antes de ampliar o acesso público. Uma detecção Gemini real e o banco Turso remoto continuam sem validação neste ambiente.
+
+## Imagens geradas por IA
+
+O catálogo inclui três conjuntos originais de aparência fotográfica: **AT Silver Split**, **AT Graphite Six** e **AT Bronze Mesh**, com pneus e freios. São imagens geradas por IA, não fotografias de produtos existentes ou de fabricantes. A interface identifica a origem como **GERADA POR IA**. Elas não correspondem aos 18 modelos de marcas do catálogo original e têm IDs próprios (18 a 20).
+
+Os arquivos PNG transparentes estão em `public/wheels`, disponíveis mesmo antes de configurar o banco. Fotos reais cadastradas pelo master são preservadas e podem ampliar o catálogo. Para modelos de fabricantes, ainda faltam as fotos reais verificadas. Os conjuntos gerados representam visualmente aro 18 para a simulação; não certificam dimensão, material ou compatibilidade real.
+
+O catálogo agora reúne 18 referências pendentes de fotos e 3 opções originais prontas. Ao salvar, cada imagem é incorporada ao projeto em WebP; ao exportar PNG, as imagens externas do SVG são incorporadas antes de renderizar para evitar rodas ausentes no arquivo final.

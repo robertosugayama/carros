@@ -43,9 +43,9 @@ try {
   await page
     .getByRole("heading", { name: "A sua foto é o ponto de partida." })
     .waitFor();
-  assert.equal(await page.locator(".model").count(), 18);
+  assert.equal(await page.locator(".model").count(), 21);
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
-  assert.equal(await page.locator(".wheel-preview svg").count(), 0);
+  assert.equal(await page.locator(".wheel-preview svg image").count(), 1);
   await page.screenshot({
     path: fileURLToPath(new URL("../desktop.png", import.meta.url)),
     fullPage: true,
@@ -125,6 +125,7 @@ try {
       mimeType: "image/png",
       buffer: Buffer.from(fixture, "base64"),
     });
+  await page.locator(".model").filter({ hasText: "Volk TE37" }).click();
   await page.locator(".wheel-overlay").first().waitFor();
   assert.equal(await page.locator(".wheel-overlay svg image").count(), 2);
   assert.equal(
@@ -194,6 +195,25 @@ try {
   await page.getByRole("button", { name: "Exportar imagem" }).click();
   const download = await downloadEvent;
   assert.ok(statSync(await download.path()).size > 1000);
+  // Exercise the bundled generated asset through the real snapshot/export flow.
+  await page.locator(".model").filter({ hasText: "AT Silver Split" }).click();
+  await page.getByText("GERADA POR IA", { exact: true }).waitFor();
+  const generatedSave = page.waitForResponse(
+    (r) => r.url().endsWith("/api/projects") && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Salvar na minha garagem" }).click();
+  assert.equal((await generatedSave).status(), 201);
+  const saved = await (
+    await page.request.get(`http://127.0.0.1:${port}/api/projects`)
+  ).json();
+  const generated = saved.find((p) => p.payload.model === 18);
+  assert.equal(generated.payload.photo.origin, "generated");
+  assert.ok(
+    generated.payload.photo.image.startsWith("data:image/webp;base64,"),
+  );
+  const generatedExport = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Exportar imagem" }).click();
+  assert.ok(statSync(await (await generatedExport).path()).size > 1000);
   assert.deepEqual(errors, []);
   console.log(
     "Browser: sem desenhos substitutos, cadastro master de foto, recorte circular, uso dos pixels originais, zoom sincronizado, snapshot salvo/reaberto, exportação PNG e celular sem overflow. Fotos técnicas não validam a qualidade das fotografias dos fabricantes.",

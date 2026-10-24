@@ -12,8 +12,8 @@ import {
   validPlacement,
 } from "../src/catalog.ts";
 test("catálogo e geometria física", () => {
-  assert.equal(models.length, 18);
-  assert.equal(new Set(models.map((m) => m.id)).size, 18);
+  assert.equal(models.length, 21);
+  assert.equal(new Set(models.map((m) => m.id)).size, 21);
   assert.equal(finishes.length, 7);
   assert.equal(calipers.length, 11);
   assert.ok(rimRatio(14) < rimRatio(22));

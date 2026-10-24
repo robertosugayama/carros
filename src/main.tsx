@@ -36,6 +36,7 @@ import {
 } from "./catalog";
 import { PhotoCatalog, findPhoto, type WheelPhoto } from "./PhotoCatalog";
 import PhotoUpload from "./PhotoUpload";
+import { generatedPhotos, mergePhotos, inlinePhoto } from "./generatedPhotos";
 import "./style.css";
 type User = { id: number; name: string; role: string };
 type Project = { id: number; name: string; created: string; payload: any };
@@ -56,7 +57,7 @@ function App() {
     [register, setRegister] = useState(false),
     [message, setMessage] = useState(""),
     [image, setImage] = useState(""),
-    [model, setModel] = useState(14),
+    [model, setModel] = useState(18),
     [finish, setFinish] = useState(1),
     [caliper, setCaliper] = useState(4),
     [angle, setAngle] = useState(20),
@@ -77,7 +78,7 @@ function App() {
     [notes, setNotes] = useState(""),
     [projectName, setProjectName] = useState("Meu projeto"),
     [saving, setSaving] = useState(false);
-  const [photos, setPhotos] = useState<WheelPhoto[]>([]),
+  const [photos, setPhotos] = useState<WheelPhoto[]>(generatedPhotos),
     [savedPhoto, setSavedPhoto] = useState<WheelPhoto | undefined>();
   const activePhoto =
     savedPhoto?.model === model &&
@@ -99,7 +100,7 @@ function App() {
   }
   useEffect(() => {
     api("catalog/photos")
-      .then(setPhotos)
+      .then((rows) => setPhotos(mergePhotos(rows)))
       .catch((e) => notify(e.message));
   }, []);
   useEffect(() => {
@@ -257,7 +258,10 @@ function App() {
           size,
           wheels,
           notes,
-          photo: activePhoto,
+          photo: {
+            ...activePhoto,
+            image: await inlinePhoto(activePhoto.image),
+          },
         },
       });
       notify("Projeto salvo na sua garagem.");
@@ -284,6 +288,12 @@ function App() {
           svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
           svg.setAttribute("width", "500");
           svg.setAttribute("height", "500");
+          for (const node of svg.querySelectorAll("image")) {
+            node.setAttribute(
+              "href",
+              await inlinePhoto(node.getAttribute("href") || ""),
+            );
+          }
           const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
               type: "image/svg+xml",
             }),
@@ -404,8 +414,8 @@ function App() {
                   Seu carro. <em>Sua próxima versão.</em>
                 </h1>
                 <p>
-                  Experimente rodas e pneus reais na sua foto. Encontre o setup
-                  que tem a sua identidade.
+                  Experimente rodas e pneus na sua foto. Encontre o setup que
+                  tem a sua identidade.
                 </p>
               </div>
               <span className="studio-badge">
@@ -440,8 +450,8 @@ function App() {
                         <Camera size={34} />
                         <h2>A sua foto é o ponto de partida.</h2>
                         <p>
-                          Fotografe o carro de lado e experimente conjuntos
-                          reais de rodas e pneus.
+                          Fotografe o carro de lado e experimente conjuntos de
+                          rodas e pneus.
                         </p>
                         <button
                           className="primary"
@@ -450,7 +460,7 @@ function App() {
                           <ImagePlus size={18} />
                           Carregar foto do carro
                         </button>
-                        <span>FOTOGRAFIAS REAIS · SEM DESENHOS</span>
+                        <span>FOTO DO SEU CARRO · CATÁLOGO VISUAL</span>
                       </div>
                     )}
                     <div ref={scene} className="scene" hidden={!image}>
@@ -460,7 +470,8 @@ function App() {
                         alt="Sua foto real de perfil do veículo"
                         draggable={false}
                       />
-                      {!before &&
+                      {!!image &&
+                        !before &&
                         !!activePhoto &&
                         wheels.map((w, i) => (
                           <div
@@ -663,7 +674,7 @@ function App() {
                             .filter((id) => enabled.includes(id)),
                         ).size
                       }{" "}
-                      COM FOTO / {enabled.length} MODELOS
+                      COM IMAGEM / {enabled.length} MODELOS
                     </span>
                   </div>
                   <div className="model-current">
@@ -677,13 +688,17 @@ function App() {
                       <h4>{models[model].name}</h4>
                       <p>{models[model].subtitle}</p>
                       <span className="outline-tag">
-                        {activePhoto ? "FOTOGRAFIA REAL" : "FOTO PENDENTE"}
+                        {activePhoto
+                          ? activePhoto.origin === "generated"
+                            ? "GERADA POR IA"
+                            : "FOTOGRAFIA REAL"
+                          : "FOTO PENDENTE"}
                       </span>
                     </div>
                   </div>
                   {activePhoto ? (
                     <p className="photo-source">
-                      Foto:{" "}
+                      Origem:{" "}
                       <a
                         href={activePhoto.source}
                         target="_blank"
@@ -716,6 +731,11 @@ function App() {
                           (m.name + " " + m.subtitle)
                             .toLowerCase()
                             .includes(query.toLowerCase()),
+                      )
+                      .sort(
+                        (a, b) =>
+                          Number(photos.some((p) => p.model === b.id)) -
+                          Number(photos.some((p) => p.model === a.id)),
                       )
                       .map((m) => (
                         <button

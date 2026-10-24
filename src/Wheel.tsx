@@ -36,7 +36,7 @@ export default function Wheel({
     <svg
       viewBox="0 0 1000 1000"
       role="img"
-      aria-label={`Fotografia de ${models[model]?.name}, aro ${size}, ${finishes[finish]?.[0]}`}
+      aria-label={`${asset.origin === "generated" ? "Imagem gerada por IA de" : "Fotografia de"} ${models[model]?.name}, aro ${size}, ${finishes[finish]?.[0]}`}
       style={{ width: "100%", height: "100%", display: "block" }}
     >
       <defs>

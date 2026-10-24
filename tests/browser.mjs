@@ -198,6 +198,91 @@ try {
   // Exercise the bundled generated asset through the real snapshot/export flow.
   await page.locator(".model").filter({ hasText: "AT Silver Split" }).click();
   await page.getByText("GERADA POR IA", { exact: true }).waitFor();
+  // Assembly images must resize on the photo without requesting another rim asset.
+  const leftWheel = page.locator(".wheel-overlay").first(),
+    rightWheel = page.locator(".wheel-overlay").last();
+  const rightBefore = await rightWheel.boundingBox();
+  await page
+    .getByRole("slider", {
+      name: "Tamanho da roda esquerda na foto",
+      exact: true,
+    })
+    .fill("22");
+  assert.ok(
+    Math.abs(
+      Number(
+        await page
+          .getByRole("slider", {
+            name: "Tamanho da roda esquerda na foto",
+            exact: true,
+          })
+          .inputValue(),
+      ) - 22,
+    ) < 0.01,
+  );
+  assert.ok(
+    Math.abs((await rightWheel.boundingBox()).width - rightBefore.width) < 1,
+  );
+  await page
+    .getByRole("button", { name: "Aumentar zoom", exact: true })
+    .click();
+  const handle = page.getByRole("button", {
+    name: "Redimensionar roda esquerda",
+    exact: true,
+  });
+  await handle.scrollIntoViewIfNeeded();
+  const beforeResize = await leftWheel.boundingBox(),
+    h = await handle.boundingBox();
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(h.x + h.width / 2 + 14, h.y + h.height / 2 + 14, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  const afterResize = await leftWheel.boundingBox();
+  assert.ok(afterResize.width > beforeResize.width + 10);
+  assert.ok(Math.abs(afterResize.width - afterResize.height) < 1);
+  assert.ok(
+    Math.abs(
+      beforeResize.x +
+        beforeResize.width / 2 -
+        (afterResize.x + afterResize.width / 2),
+    ) < 1,
+  );
+  assert.ok(
+    Math.abs(
+      beforeResize.y +
+        beforeResize.height / 2 -
+        (afterResize.y + afterResize.height / 2),
+    ) < 1,
+  );
+  const beforeKey = Number(
+    await page
+      .getByRole("slider", {
+        name: "Tamanho da roda esquerda na foto",
+        exact: true,
+      })
+      .inputValue(),
+  );
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.ok(
+    Number(
+      await page
+        .getByRole("slider", {
+          name: "Tamanho da roda esquerda na foto",
+          exact: true,
+        })
+        .inputValue(),
+    ) > beforeKey,
+  );
+  assert.equal(
+    await page
+      .getByRole("slider", { name: "Tamanho do aro", exact: true })
+      .count(),
+    0,
+  );
+
   const generatedSave = page.waitForResponse(
     (r) => r.url().endsWith("/api/projects") && r.request().method() === "POST",
   );

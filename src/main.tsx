@@ -27,6 +27,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import Wheel from "./Wheel";
+import WheelFitControls from "./WheelFitControls";
+import { clampDiameter, resizeDiameter } from "./wheelSizing";
 import {
   models,
   finishes,
@@ -206,6 +208,62 @@ function App() {
       URL.revokeObjectURL(url);
     }
   }
+  const resizing = useRef<{
+    index: number;
+    pointer: number;
+    cx: number;
+    cy: number;
+    from: number;
+    start: number;
+    width: number;
+  } | null>(null);
+  function setWheelDiameter(index: number, diameter: number) {
+    setSelected(index);
+    setEditing(true);
+    setWheels((old) =>
+      old.map((w, i) =>
+        i === index ? { ...w, diameter: clampDiameter(diameter) } : w,
+      ),
+    );
+  }
+  function startResize(
+    e: React.PointerEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!scene.current) return;
+    drag.current = null;
+    const r = scene.current.getBoundingClientRect(),
+      w = wheels[index],
+      cx = r.left + w.x * r.width,
+      cy = r.top + w.y * r.height;
+    resizing.current = {
+      index,
+      pointer: e.pointerId,
+      cx,
+      cy,
+      from: Math.hypot(e.clientX - cx, e.clientY - cy),
+      start: w.diameter,
+      width: r.width,
+    };
+    setSelected(index);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function moveResize(e: React.PointerEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    const r = resizing.current;
+    if (!r || r.pointer !== e.pointerId) return;
+    setWheelDiameter(
+      r.index,
+      resizeDiameter(
+        r.start,
+        r.from,
+        Math.hypot(e.clientX - r.cx, e.clientY - r.cy),
+        r.width,
+      ),
+    );
+  }
   function updateWheel(p: Partial<Placement>) {
     setWheels((w) => w.map((v, i) => (i === selected ? { ...v, ...p } : v)));
   }
@@ -282,7 +340,7 @@ function App() {
       const ctx = c.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
       if (!before && activePhoto) {
-        const svgs = scene.current.querySelectorAll(".wheel-overlay svg");
+        const svgs = scene.current.querySelectorAll(".wheel-overlay > svg");
         for (let i = 0; i < 2; i++) {
           const svg = svgs[i].cloneNode(true) as SVGSVGElement;
           svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -497,7 +555,55 @@ function App() {
                               photo={activePhoto}
                               mounted
                             />
-                            {editing && <span className="center-cross">+</span>}
+                            {editing && (
+                              <>
+                                <span className="center-cross">+</span>
+                                <button
+                                  type="button"
+                                  className="wheel-resize-handle"
+                                  aria-label={
+                                    "Redimensionar roda " +
+                                    (i === 0 ? "esquerda" : "direita")
+                                  }
+                                  title="Arraste para ajustar o tamanho. Use as setas no teclado."
+                                  onPointerDown={(e) => startResize(e, i)}
+                                  onPointerMove={moveResize}
+                                  onPointerUp={(e) => {
+                                    e.stopPropagation();
+                                    resizing.current = null;
+                                  }}
+                                  onPointerCancel={(e) => {
+                                    e.stopPropagation();
+                                    resizing.current = null;
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (
+                                      [
+                                        "ArrowUp",
+                                        "ArrowRight",
+                                        "ArrowDown",
+                                        "ArrowLeft",
+                                      ].includes(e.key)
+                                    ) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setWheelDiameter(
+                                        i,
+                                        w.diameter +
+                                          (["ArrowUp", "ArrowRight"].includes(
+                                            e.key,
+                                          )
+                                            ? 1
+                                            : -1) *
+                                            0.0025,
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <span aria-hidden="true">↗</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         ))}
                     </div>
@@ -553,6 +659,12 @@ function App() {
                     {!image ? "CARREGUE SUA FOTO" : "FOTOGRAFIA REAL"}
                   </span>
                 </div>
+                {!!image && !before && !!activePhoto && (
+                  <WheelFitControls
+                    wheels={wheels}
+                    onChange={setWheelDiameter}
+                  />
+                )}
                 <div className="upload-row">
                   <button
                     className="dark-button"
@@ -809,43 +921,53 @@ function App() {
                 <section>
                   <div className="label-heading">
                     <h3>
-                      <b>03</b> Tamanho do aro
+                      <b>03</b> Referência do aro
                     </h3>
                     <strong>{size}”</strong>
                   </div>
-                  <input
-                    aria-label="Tamanho do aro"
-                    type="range"
-                    min="14"
-                    max="22"
-                    value={size}
-                    disabled={
-                      !photos.some(
-                        (p) => p.model === model && p.finish === finish,
-                      )
-                    }
-                    onChange={(e) => {
-                      const p = findPhoto(
-                        photos,
-                        model,
-                        finish,
-                        Number(e.target.value),
-                      );
-                      if (activePhoto?.kind === "rim") {
-                        setSize(Number(e.target.value));
-                      } else if (p) {
-                        setSavedPhoto(undefined);
-                        setSize(p.size);
-                      } else
-                        notify(
-                          "Cadastre uma fotografia real deste aro para manter o pneu e a roda autênticos.",
-                        );
-                    }}
-                  />
-                  <div className="range-labels">
-                    <span>14”</span>
-                    <span>Somente aros com foto cadastrada · 22”</span>
-                  </div>
+                  {activePhoto?.kind === "assembly" ? (
+                    <p className="rim-size-explainer">
+                      Aro representado na imagem: {size}”. Para encaixar a roda
+                      no carro, use <b>Ajustar tamanho das rodas na foto</b>,
+                      junto à imagem.
+                    </p>
+                  ) : (
+                    <>
+                      <input
+                        aria-label="Tamanho do aro"
+                        type="range"
+                        min="14"
+                        max="22"
+                        value={size}
+                        disabled={
+                          !photos.some(
+                            (p) => p.model === model && p.finish === finish,
+                          )
+                        }
+                        onChange={(e) => {
+                          const p = findPhoto(
+                            photos,
+                            model,
+                            finish,
+                            Number(e.target.value),
+                          );
+                          if (activePhoto?.kind === "rim") {
+                            setSize(Number(e.target.value));
+                          } else if (p) {
+                            setSavedPhoto(undefined);
+                            setSize(p.size);
+                          } else
+                            notify(
+                              "Cadastre uma fotografia real deste aro para manter o pneu e a roda autênticos.",
+                            );
+                        }}
+                      />
+                      <div className="range-labels">
+                        <span>14”</span>
+                        <span>Somente aros com foto cadastrada · 22”</span>
+                      </div>
+                    </>
+                  )}
                 </section>
                 <section>
                   <div className="label-heading">

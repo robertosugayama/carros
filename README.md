@@ -30,6 +30,12 @@ O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Ca
 
 **Aquisição de fotografias:** a conexão direta com sites de fabricantes retornou bloqueio de rede HTTP 403 neste ambiente. Os domínios necessários foram adicionados ao rascunho de rede do ambiente; isso não aplica a liberação automaticamente nem publica a Vercel. A obtenção e conferência do catálogo fotográfico permanece pendente até o acesso ser liberado. Testes usam imagens técnicas descartáveis e não comprovam realismo de um catálogo comercial ainda ausente.
 
+## Ajustar o tamanho das rodas sobre a foto
+
+Depois de carregar a foto do carro, use **Ajustar tamanho das rodas na foto**, logo abaixo da imagem. Os controles de roda esquerda e direita são independentes; os botões +/− permitem ajustes pequenos. Em modo de ajuste, arraste o centro para mover e a alça ↗ para aumentar ou diminuir. A alça também responde às setas do teclado.
+
+O centro não muda durante o redimensionamento e a roda continua circular, inclusive com zoom. **Referência do aro** descreve o aro da imagem; para conjuntos completos fotografados/gerados ela não é o controle de encaixe na foto. O ajuste não exige cadastrar outra fotografia.
+
 ## Primeira conta master
 
 Cadastre sua própria conta no app. No servidor, com o banco correto selecionado:

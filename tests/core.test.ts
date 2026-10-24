@@ -220,3 +220,14 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("redimensionar roda mantém escala normalizada sob zoom e respeita limites", async () => {
+  const { resizeDiameter } = await import("../src/wheelSizing.ts");
+  const normal = resizeDiameter(0.16, 100, 120, 800);
+  const zoomed = resizeDiameter(0.16, 200, 240, 1600);
+  assert.ok(normal > 0.16);
+  assert.equal(normal, zoomed);
+  assert.equal(resizeDiameter(0.16, 100, 0, 800), 0.03);
+  assert.equal(resizeDiameter(0.16, 0, 1000, 800), 0.65);
+  assert.equal(resizeDiameter(0.16, 0, 100, 0), 0.16);
+});

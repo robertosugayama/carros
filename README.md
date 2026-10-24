@@ -13,14 +13,22 @@ npm run dev
 
 Servidor Express e frontend na mesma porta, **3000** por padrão. Se estiver ocupada: `PORT=3100 npm run dev`. Para produção em servidor Node: `npm run build` seguido de `npm start`. Em desenvolvimento, use as variáveis já injetadas no processo ou `node --env-file=.env node_modules/tsx/dist/cli.mjs server.ts`; não coloque chaves no frontend.
 
-## O que está implementado
+## Provador fotográfico
 
-- Foto por câmera (`capture="environment"`) ou galeria; JPEG, PNG e WebP. Redimensionamento no dispositivo a até 1800 px, com limite de payload adequado a funções serverless.
-- Rodas SVG circulares com `useId()` para gradientes independentes; ambos os centros e diâmetros são ajustáveis por arraste ou sliders. O zoom altera a cena inteira, preservando as proporções 1:1. Visualização original/depois e exportação PNG.
-- 18 entradas de catálogo, 7 acabamentos metálicos e 11 cores de pinças. Raios divididos, mesh, turbina e estrela; disco escovado com furos, marcas concêntricas e pinça com identificação BREMBO. Aro de 14 a 22, com pneu de perfil visual variável e diâmetro externo constante.
-- Cadastro/login com senha scrypt e salt individual, cookie HttpOnly/SameSite, sessões de sete dias, histórico por usuário, garagem com fotos/configurações/notas e registro de manutenção por veículo.
-- Master: listar usuários, bloquear/desbloquear, promover/rebaixar outros administradores e ativar/ocultar as 18 entradas do catálogo. Não há criação de conta master pública nem senha padrão.
-- Endpoint real `POST /api/gemini/detect-wheels` usando `@google/genai`, restrito a contas autenticadas. Sem chave, informa indisponibilidade; ajuste manual funciona sem IA. HUD é uma animação de espera indicativa, não telemetria do modelo.
+O renderizador de rodas desenhadas e o carro ilustrado foram removidos. O estúdio começa pedindo uma foto real do veículo. Os 18 modelos são entradas de catálogo: **fotografias reais dos fabricantes ainda precisam ser obtidas e cadastradas**. Um modelo sem foto informa a pendência; nunca recebe desenho ou foto de outro produto como substituto.
+
+O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Catálogo fotográfico real**, com fonte e crédito obrigatórios. Há enquadramento circular e ajuste de centro/ampliação antes de salvar. PNG, JPEG e WebP são aceitos; imagens são normalizadas a WebP de 800 px com transparência fora do círculo.
+
+- **Somente roda:** a fotografia frontal do fabricante substitui apenas a área do aro; o pneu real da foto do carro continua visível. O ajuste de aro altera a proporção visual da roda mantendo o conjunto externo fixo. Isso é uma estimativa visual, não medição física do pneu.
+- **Roda + pneu:** usa a fotografia completa do conjunto, disponível no aro fotografado. Não inventa um pneu em outros perfis.
+- Acabamentos só ficam disponíveis se houver fotografia correspondente. Não há filtros de recoloração para imitar cromado ou pintura real.
+- Freios são os registrados na fotografia. As pinças vetoriais e a recoloração artificial foram removidas; camadas fotográficas independentes de freio ainda não foram adicionadas.
+- O recorte mantém a proporção 1:1 e os pixels da foto. Imagens em perspectiva não devem ser cadastradas como frontais: não há achatamento para disfarçar o ângulo.
+- Zoom sincronizado, antes/depois, ajuste manual dos centros e diâmetros, câmera/galeria e exportação PNG continuam disponíveis.
+- Cada projeto guarda uma cópia da fotografia do produto. Atualizações do catálogo não substituem a fotografia de projetos salvos. Projetos antigos sem foto não recebem um desenho substituto.
+- Garagem, manutenção, cadastro/login e administração de contas continuam funcionando. O banco ganha a tabela `wheel_photos` automaticamente.
+
+**Aquisição de fotografias:** a conexão direta com sites de fabricantes retornou bloqueio de rede HTTP 403 neste ambiente. Os domínios necessários foram adicionados ao rascunho de rede do ambiente; isso não aplica a liberação automaticamente nem publica a Vercel. A obtenção e conferência do catálogo fotográfico permanece pendente até o acesso ser liberado. Testes usam imagens técnicas descartáveis e não comprovam realismo de um catálogo comercial ainda ausente.
 
 ## Primeira conta master
 
@@ -58,10 +66,10 @@ npm test
 node tests/browser.mjs
 ```
 
-O teste de navegador usa Chromium instalado em `/usr/bin/chromium`; ajuste `executablePath` em outro computador ou instale o navegador do Playwright. Usa servidor e banco temporários próprios. Verifica catálogo, círculos, proporção do zoom, ajuste, antes/depois, celular sem overflow, cadastro, upload, salvar/reabrir projeto e exportar PNG. As imagens `desktop.png` e `mobile.png` são capturas reais da interface durante os testes. Testes de API verificam isolamento entre usuários, manutenção, validações, bloqueio e permissões master. Gemini e Turso remoto não são simulados como funcionando.
+O teste de navegador usa Chromium instalado em `/usr/bin/chromium`; ajuste `executablePath` em outro computador ou instale o navegador do Playwright. Usa servidor e banco temporários próprios. Verifica ausência de desenhos substitutos, cadastro master de fotografia com recorte, uso de pixels da imagem, círculos, zoom, antes/depois, celular sem overflow, projeto salvo/reaberto e PNG. As imagens técnicas dos testes ficam exclusivamente em banco temporário, nunca são publicadas como fotos de fabricantes. As imagens `desktop.png` e `mobile.png` são capturas reais da interface durante os testes. Testes de API verificam isolamento entre usuários, manutenção, validações, bloqueio e permissões master. Gemini e Turso remoto não são simulados como funcionando.
 
 ## Limites desta versão
 
-O nome 3D descreve o sombreamento visual dos componentes: a montagem sobre a foto é 2D frontal, sem reconstrução tridimensional. Os desenhos de roda são interpretações vetoriais dos estilos do catálogo, não modelos CAD ou reproduções oficiais certificadas dos fabricantes. Uma foto lateral é essencial; não há correção de perspectiva por elipses. A proporção aro/pneu é ilustrativa e não substitui as medidas reais dos pneus.
+A montagem é 2D com fotografias reais, sem reconstrução tridimensional. Não verifica furação, offset, folgas ou homologação. Consulte um especialista antes da instalação. O nome de cada produto deve ser conferido na fonte do fabricante antes de cadastrar sua imagem; os nomes existentes no catálogo não comprovam correspondência sem a fotografia.
 
-Antes de ampliar o acesso público: configure rate limiting compartilhado ou WAF (a limitação atual é por instância), política de privacidade/retensão de fotos, backups e recuperação de senha/verificação de e-mail. Múltiplos projetos com fotos são armazenados no banco nesta versão; para grandes catálogos, migre imagens para armazenamento de objetos privado.
+As fotos completas são armazenadas no banco nesta versão. Para muitos modelos/variantes e alto tráfego, use armazenamento de objetos e miniaturas. Configure backups, rate limiting compartilhado, política de privacidade/retensão e recuperação de senha antes de ampliar o acesso público. Uma detecção Gemini real e o banco Turso remoto continuam sem validação neste ambiente.

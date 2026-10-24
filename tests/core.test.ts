@@ -147,6 +147,52 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       (await req("admin/users", undefined, a.cookie)).data.length,
       2,
     );
+    const photo = {
+      model: 14,
+      finish: 1,
+      size: 18,
+      image: "data:image/png;base64,aGVsbG8=",
+      source: "https://example.com/test-fixture",
+      credit: "Technical fixture",
+    };
+    assert.equal((await req("admin/photos", photo, b.cookie)).status, 403);
+    assert.equal(
+      (
+        await req(
+          "admin/photos",
+          { ...photo, image: "data:image/svg+xml;base64,aGVsbG8=" },
+          a.cookie,
+        )
+      ).status,
+      400,
+    );
+    assert.equal((await req("admin/photos", photo, a.cookie)).status, 201);
+    const realPhoto = (await req("catalog/photos")).data[0];
+    assert.equal(realPhoto.image, photo.image);
+    assert.equal(
+      (
+        await req(
+          "projects",
+          { name: "Photo project", payload: { ...payload, photo: realPhoto } },
+          a.cookie,
+        )
+      ).status,
+      201,
+    );
+    assert.equal(
+      (
+        await req(
+          "projects",
+          {
+            name: "Wrong finish",
+            payload: { ...payload, photo: { ...realPhoto, finish: 0 } },
+          },
+          a.cookie,
+        )
+      ).status,
+      400,
+    );
+
     assert.equal(
       (await req("admin/catalog", { id: 1, enabled: false }, a.cookie)).status,
       200,

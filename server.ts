@@ -9,6 +9,17 @@ await db.exec(
   ` CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT,email TEXT UNIQUE,password TEXT,role TEXT DEFAULT 'user',blocked INTEGER DEFAULT 0); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER,expires INTEGER); CREATE TABLE IF NOT EXISTS projects(id INTEGER PRIMARY KEY,user_id INTEGER,name TEXT,payload TEXT,created TEXT DEFAULT CURRENT_TIMESTAMP); CREATE TABLE IF NOT EXISTS maintenance(id INTEGER PRIMARY KEY,user_id INTEGER,vehicle TEXT,kind TEXT,date TEXT,km REAL,notes TEXT); CREATE TABLE IF NOT EXISTS catalog(id INTEGER PRIMARY KEY,enabled INTEGER DEFAULT 1);`,
 );
 await db.exec(
+  `CREATE TABLE IF NOT EXISTS wheel_photos(id INTEGER PRIMARY KEY,model INTEGER,finish INTEGER,size INTEGER,image TEXT,source TEXT,credit TEXT,kind TEXT DEFAULT 'assembly',UNIQUE(model,finish,size));`,
+);
+if (
+  !(await db.prepare("PRAGMA table_info(wheel_photos)").all()).some(
+    (c) => c.name === "kind",
+  )
+)
+  await db.exec(
+    "ALTER TABLE wheel_photos ADD COLUMN kind TEXT DEFAULT 'assembly'",
+  );
+await db.exec(
   "INSERT OR IGNORE INTO catalog(id) VALUES " +
     models.map((m) => "(" + m.id + ")").join(",") +
     ";",
@@ -46,6 +57,13 @@ app.get("/api/status", async (_req, res) =>
 );
 app.get("/api/catalog", async (_req, res) =>
   res.json(await db.prepare("SELECT * FROM catalog").all()),
+);
+app.get("/api/catalog/photos", async (_req, res) =>
+  res.json(
+    await db
+      .prepare("SELECT * FROM wheel_photos ORDER BY model,finish,size")
+      .all(),
+  ),
 );
 app.post("/api/auth/:action", async (req, res) => {
   const key =
@@ -117,12 +135,10 @@ app.post("/api/auth/:action", async (req, res) => {
 });
 app.use("/api", async (req, res, next) => {
   if (req.path === "/gemini/detect-wheels" && !process.env.GEMINI_API_KEY)
-    return res
-      .status(503)
-      .json({
-        error:
-          "IA não configurada. Use o ajuste manual ou configure GEMINI_API_KEY no servidor.",
-      });
+    return res.status(503).json({
+      error:
+        "IA não configurada. Use o ajuste manual ou configure GEMINI_API_KEY no servidor.",
+    });
   const u: any = await db
     .prepare(
       "SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>? AND u.blocked=0",
@@ -184,6 +200,25 @@ app.post("/api/projects", async (req, res) => {
     return res
       .status(400)
       .json({ error: "Projeto inválido. Confira a imagem e os ajustes." });
+  if (payload.photo) {
+    const p = payload.photo;
+    if (
+      typeof p.image !== "string" ||
+      p.image.length > 900000 ||
+      !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(p.image) ||
+      p.model !== payload.model ||
+      p.finish !== payload.finish ||
+      (p.kind !== "rim" && p.size !== payload.size) ||
+      typeof p.source !== "string" ||
+      !/^https?:\/\//.test(p.source) ||
+      typeof p.credit !== "string"
+    )
+      return res
+        .status(400)
+        .json({
+          error: "A fotografia não corresponde ao acabamento e aro do projeto.",
+        });
+  }
   const r = await db
     .prepare("INSERT INTO projects(user_id,name,payload) VALUES(?,?,?)")
     .run(res.locals.user.id, name.trim(), JSON.stringify(payload));
@@ -257,6 +292,50 @@ app.post("/api/admin/users", async (req, res) => {
     .run(role, blocked ? 1 : 0, id);
   res.json({ ok: true });
 });
+app.post("/api/admin/photos", async (req, res) => {
+  const { model, finish, size, image, source, credit } = req.body;
+  const kind = req.body.kind || "assembly";
+  if (
+    !["rim", "assembly"].includes(kind) ||
+    !Number.isInteger(model) ||
+    model < 0 ||
+    model > 17 ||
+    !Number.isInteger(finish) ||
+    finish < 0 ||
+    finish > 6 ||
+    !Number.isInteger(size) ||
+    size < 14 ||
+    size > 22 ||
+    typeof image !== "string" ||
+    image.length > 900000 ||
+    !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image) ||
+    typeof source !== "string" ||
+    !/^https?:\/\//.test(source) ||
+    source.length > 1000 ||
+    typeof credit !== "string" ||
+    !credit.trim() ||
+    credit.length > 200
+  )
+    return res
+      .status(400)
+      .json({
+        error: "Confira a foto, o modelo, o aro, o acabamento e a fonte.",
+      });
+  await db
+    .prepare(
+      "INSERT INTO wheel_photos(model,finish,size,image,source,credit,kind) VALUES(?,?,?,?,?,?,?) ON CONFLICT(model,finish,size) DO UPDATE SET image=excluded.image,source=excluded.source,credit=excluded.credit,kind=excluded.kind",
+    )
+    .run(model, finish, size, image, source, credit.trim(), kind);
+  res
+    .status(201)
+    .json(
+      await db
+        .prepare(
+          "SELECT * FROM wheel_photos WHERE model=? AND finish=? AND size=?",
+        )
+        .get(model, finish, size),
+    );
+});
 app.post("/api/admin/catalog", async (req, res) => {
   const { id, enabled } = req.body;
   if (
@@ -324,11 +403,9 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
     });
     const result = JSON.parse(response.text || "{}");
     if (!result.sideProfile)
-      return res
-        .status(422)
-        .json({
-          error: "Use uma foto lateral a 90°, com as duas rodas visíveis.",
-        });
+      return res.status(422).json({
+        error: "Use uma foto lateral a 90°, com as duas rodas visíveis.",
+      });
     if (
       !Array.isArray(result.wheels) ||
       result.wheels.length !== 2 ||
@@ -341,12 +418,10 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
       throw Error("Invalid model response");
     res.json(result);
   } catch {
-    res
-      .status(502)
-      .json({
-        error:
-          "O modelo não concluiu a análise. Confira GEMINI_MODEL, a chave e a disponibilidade na sua conta. O ajuste manual continua disponível.",
-      });
+    res.status(502).json({
+      error:
+        "O modelo não concluiu a análise. Confira GEMINI_MODEL, a chave e a disponibilidade na sua conta. O ajuste manual continua disponível.",
+    });
   }
 });
 app.use("/api", async (_req, res) =>
@@ -375,14 +450,12 @@ app.use(
     _next: express.NextFunction,
   ) => {
     console.error(err.message);
-    res
-      .status(err.status || 500)
-      .json({
-        error:
-          err.status === 413
-            ? "Imagem muito grande."
-            : "Não foi possível concluir a operação.",
-      });
+    res.status(err.status || 500).json({
+      error:
+        err.status === 413
+          ? "Imagem muito grande."
+          : "Não foi possível concluir a operação.",
+    });
   },
 );
 export default app;

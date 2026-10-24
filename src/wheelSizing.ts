@@ -13,3 +13,16 @@ export function resizeDiameter(
     return start;
   return clampDiameter(start + ((to - from) * Math.SQRT2) / sceneWidth);
 }
+
+// Legacy projects and AI estimates may contain different wheel sizes.
+// Use their mean until an explicit common diameter is selected; keep centers intact.
+export function equalizeWheels<T extends { diameter: number }>(
+  wheels: T[],
+  diameter?: number,
+): T[] {
+  if (!wheels.length) return wheels;
+  const shared = clampDiameter(
+    diameter ?? wheels.reduce((sum, w) => sum + w.diameter, 0) / wheels.length,
+  );
+  return wheels.map((w) => ({ ...w, diameter: shared }));
+}

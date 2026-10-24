@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import Wheel from "./Wheel";
 import WheelFitControls from "./WheelFitControls";
-import { clampDiameter, resizeDiameter } from "./wheelSizing";
+import { clampDiameter, resizeDiameter, equalizeWheels } from "./wheelSizing";
 import {
   models,
   finishes,
@@ -220,11 +220,7 @@ function App() {
   function setWheelDiameter(index: number, diameter: number) {
     setSelected(index);
     setEditing(true);
-    setWheels((old) =>
-      old.map((w, i) =>
-        i === index ? { ...w, diameter: clampDiameter(diameter) } : w,
-      ),
-    );
+    setWheels((old) => equalizeWheels(old, diameter));
   }
   function startResize(
     e: React.PointerEvent<HTMLButtonElement>,
@@ -265,6 +261,10 @@ function App() {
     );
   }
   function updateWheel(p: Partial<Placement>) {
+    if (p.diameter !== undefined) {
+      setWheelDiameter(selected, p.diameter);
+      return;
+    }
     setWheels((w) => w.map((v, i) => (i === selected ? { ...v, ...p } : v)));
   }
   function pointer(e: React.PointerEvent) {
@@ -286,7 +286,7 @@ function App() {
     setScanner(0);
     try {
       const r = await api("gemini/detect-wheels", { image });
-      setWheels(r.wheels);
+      setWheels(equalizeWheels(r.wheels));
       setSize(r.baseRim);
       notify(r.recommendations);
       setEditing(true);
@@ -398,7 +398,7 @@ function App() {
     setCaliper(d.caliper);
     setAngle(d.angle);
     setSize(d.size);
-    setWheels(d.wheels);
+    setWheels(equalizeWheels(d.wheels));
     setNotes(d.notes || "");
     setProjectName(p.name);
     setZoom(1);
@@ -928,8 +928,8 @@ function App() {
                   {activePhoto?.kind === "assembly" ? (
                     <p className="rim-size-explainer">
                       Aro representado na imagem: {size}”. Para encaixar a roda
-                      no carro, use <b>Ajustar tamanho das rodas na foto</b>,
-                      junto à imagem.
+                      no carro, use <b>Ajustar tamanho das duas rodas</b>, junto
+                      à imagem.
                     </p>
                   ) : (
                     <>

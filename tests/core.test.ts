@@ -93,7 +93,7 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       size: 18,
       wheels: [
         { x: 0.2, y: 0.7, diameter: 0.2 },
-        { x: 0.7, y: 0.7, diameter: 0.2 },
+        { x: 0.7, y: 0.7, diameter: 0.3 },
       ],
       notes: "Projeto teste",
     };
@@ -102,6 +102,19 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       201,
     );
     assert.equal((await req("projects", undefined, a.cookie)).data.length, 1);
+    const normalized = (await req("projects", undefined, a.cookie)).data[0]
+      .payload.wheels;
+    assert.deepEqual(
+      normalized.map((w: any) => w.diameter),
+      [0.25, 0.25],
+    );
+    assert.deepEqual(
+      normalized.map((w: any) => [w.x, w.y]),
+      [
+        [0.2, 0.7],
+        [0.7, 0.7],
+      ],
+    );
     assert.equal((await req("projects", undefined, b.cookie)).data.length, 0);
     assert.equal(
       (
@@ -230,4 +243,26 @@ test("redimensionar roda mantém escala normalizada sob zoom e respeita limites"
   assert.equal(resizeDiameter(0.16, 100, 0, 800), 0.03);
   assert.equal(resizeDiameter(0.16, 0, 1000, 800), 0.65);
   assert.equal(resizeDiameter(0.16, 0, 100, 0), 0.16);
+});
+
+test("tamanho único preserva centros, corrige legado e não altera entrada", async () => {
+  const { equalizeWheels } = await import("../src/wheelSizing.ts");
+  const original = [
+    { x: 0.2, y: 0.6, diameter: 0.2 },
+    { x: 0.8, y: 0.65, diameter: 0.3 },
+  ];
+  const shared = equalizeWheels(original);
+  assert.deepEqual(
+    shared.map((w) => w.diameter),
+    [0.25, 0.25],
+  );
+  assert.deepEqual(
+    shared.map((w) => [w.x, w.y]),
+    original.map((w) => [w.x, w.y]),
+  );
+  assert.deepEqual(
+    equalizeWheels(original, 0.4).map((w) => w.diameter),
+    [0.4, 0.4],
+  );
+  assert.equal(original[1].diameter, 0.3);
 });

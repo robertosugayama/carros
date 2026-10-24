@@ -1,4 +1,5 @@
 import express from "express";
+import { equalizeWheels } from "./src/wheelSizing.ts";
 import { db } from "./database.ts";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -163,7 +164,11 @@ app.get("/api/projects", async (_req, res) =>
       await db
         .prepare("SELECT * FROM projects WHERE user_id=? ORDER BY id DESC")
         .all(res.locals.user.id)
-    ).map((p: any) => ({ ...p, payload: JSON.parse(p.payload) })),
+    ).map((p: any) => {
+      const payload = JSON.parse(p.payload);
+      payload.wheels = equalizeWheels(payload.wheels);
+      return { ...p, payload };
+    }),
   ),
 );
 app.post("/api/projects", async (req, res) => {
@@ -217,6 +222,7 @@ app.post("/api/projects", async (req, res) => {
         error: "A fotografia não corresponde ao acabamento e aro do projeto.",
       });
   }
+  payload.wheels = equalizeWheels(payload.wheels);
   const r = await db
     .prepare("INSERT INTO projects(user_id,name,payload) VALUES(?,?,?)")
     .run(res.locals.user.id, name.trim(), JSON.stringify(payload));
@@ -412,6 +418,7 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
       typeof result.recommendations !== "string"
     )
       throw Error("Invalid model response");
+    result.wheels = equalizeWheels(result.wheels);
     res.json(result);
   } catch {
     res.status(502).json({

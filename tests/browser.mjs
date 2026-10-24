@@ -201,10 +201,10 @@ try {
   // Assembly images must resize on the photo without requesting another rim asset.
   const leftWheel = page.locator(".wheel-overlay").first(),
     rightWheel = page.locator(".wheel-overlay").last();
-  const rightBefore = await rightWheel.boundingBox();
+
   await page
     .getByRole("slider", {
-      name: "Tamanho da roda esquerda na foto",
+      name: "Tamanho das duas rodas na foto",
       exact: true,
     })
     .fill("22");
@@ -213,7 +213,7 @@ try {
       Number(
         await page
           .getByRole("slider", {
-            name: "Tamanho da roda esquerda na foto",
+            name: "Tamanho das duas rodas na foto",
             exact: true,
           })
           .inputValue(),
@@ -221,7 +221,10 @@ try {
     ) < 0.01,
   );
   assert.ok(
-    Math.abs((await rightWheel.boundingBox()).width - rightBefore.width) < 1,
+    Math.abs(
+      (await rightWheel.boundingBox()).width -
+        (await leftWheel.boundingBox()).width,
+    ) < 1,
   );
   await page
     .getByRole("button", { name: "Aumentar zoom", exact: true })
@@ -241,6 +244,9 @@ try {
   await page.mouse.up();
   const afterResize = await leftWheel.boundingBox();
   assert.ok(afterResize.width > beforeResize.width + 10);
+  assert.ok(
+    Math.abs(afterResize.width - (await rightWheel.boundingBox()).width) < 1,
+  );
   assert.ok(Math.abs(afterResize.width - afterResize.height) < 1);
   assert.ok(
     Math.abs(
@@ -259,7 +265,7 @@ try {
   const beforeKey = Number(
     await page
       .getByRole("slider", {
-        name: "Tamanho da roda esquerda na foto",
+        name: "Tamanho das duas rodas na foto",
         exact: true,
       })
       .inputValue(),
@@ -270,7 +276,7 @@ try {
     Number(
       await page
         .getByRole("slider", {
-          name: "Tamanho da roda esquerda na foto",
+          name: "Tamanho das duas rodas na foto",
           exact: true,
         })
         .inputValue(),

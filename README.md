@@ -32,7 +32,7 @@ O administrador cadastra uma foto por modelo, acabamento e aro em **Admin → Ca
 
 ## Ajustar o tamanho das rodas sobre a foto
 
-Depois de carregar a foto do carro, use **Ajustar tamanho das rodas na foto**, logo abaixo da imagem. Os controles de roda esquerda e direita são independentes; os botões +/− permitem ajustes pequenos. Em modo de ajuste, arraste o centro para mover e a alça ↗ para aumentar ou diminuir. A alça também responde às setas do teclado.
+Depois de carregar a foto do carro, use **Ajustar tamanho das duas rodas**, logo abaixo da imagem. Um único controle altera o diâmetro das duas rodas juntas; os botões +/− permitem ajustes pequenos. As posições continuam independentes. Em modo de ajuste, arraste o centro para mover e a alça ↗ para aumentar ou diminuir. A alça também responde às setas do teclado e sempre redimensiona ambas as rodas. Projetos antigos e resultados da IA com tamanhos diferentes são equalizados pela média dos diâmetros, sem alterar os centros.
 
 O centro não muda durante o redimensionamento e a roda continua circular, inclusive com zoom. **Referência do aro** descreve o aro da imagem; para conjuntos completos fotografados/gerados ela não é o controle de encaixe na foto. O ajuste não exige cadastrar outra fotografia.
 

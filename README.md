@@ -106,3 +106,11 @@ O catálogo agora reúne 18 referências pendentes de fotos e 3 opções origina
 `POST /api/gemini/edit-wheel` usa `@google/genai` para tratamento ou edição de freios; valida o raster antes da chamada, limita frequência, usa prazo de 45 segundos e normaliza a resposta com Sharp para WebP 800 px. Somente contas autenticadas podem chamar. Não publica automaticamente o resultado; o usuário deve revisar/salvar. Modelos gerados ou tratados por IA podem diferir do produto original, por isso a revisão é necessária.
 
 **Validação:** testes cobrem a ausência de chave e o processamento de uma resposta simulada. Uma chamada real ao Gemini de edição ainda não foi validada porque `GEMINI_API_KEY` não está presente neste ambiente. Ausência de chave, modelo indisponível, limites e falhas são informados; não são apresentados como tratamento bem-sucedido. As três variantes de disco liso já estão incluídas no app e não exigem esse serviço.
+
+## Erros no cadastro na Vercel
+
+A API precisa de `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` em **Production**, além de um novo deploy após configurar as variáveis. A chave Gemini é para IA e não configura nem substitui o banco. Cadastros, logins e master só funcionam com o banco conectado.
+
+`api/index.ts` carrega o Express por meio de `apiRuntime.ts`, que responde JSON com HTTP 503 se faltarem as variáveis, se a URL for inválida ou se a inicialização falhar. Erros de importação de dependências também são tratados. Não há fallback para SQLite temporário na Vercel. O frontend trata respostas em texto/HTML sem mostrar um erro técnico de parse JSON.
+
+Para diagnóstico, abra `/api/status` no domínio do app após o deploy. `DATABASE_NOT_CONFIGURED` indica que faltam variáveis; `INVALID_DATABASE_URL` indica URL inválida; `DATABASE_CONNECTION_FAILED` indica erro ao conectar; `SERVICE_STARTUP_FAILED` pede inspeção dos logs de Functions. O teste local não confirma o estado de uma implantação remota.

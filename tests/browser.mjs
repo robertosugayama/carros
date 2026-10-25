@@ -69,6 +69,20 @@ try {
   await auth.getByLabel("Seu nome").fill("Teste fotos");
   await auth.getByLabel("E-mail").fill("ui@example.com");
   await auth.getByLabel("Senha").fill("senha-teste-123");
+  await page.route("**/api/auth/register", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "text/plain",
+      body: "A server error has occurred",
+    }),
+  );
+  await auth.getByRole("button", { name: "Criar minha conta" }).click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "O servidor está indisponível (HTTP 500)" })
+    .waitFor();
+  assert.ok(await auth.isVisible());
+  await page.unroute("**/api/auth/register");
   await auth.getByRole("button", { name: "Criar minha conta" }).click();
   await auth.waitFor({ state: "hidden" });
   // Technical upload fixture, confined to this temporary database; not a product photograph.

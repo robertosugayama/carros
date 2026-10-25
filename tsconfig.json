@@ -15,6 +15,7 @@
   "include": [
     "src",
     "server.ts",
+    "apiRuntime.ts",
     "masterAccount.ts",
     "imageEditing.ts",
     "database.ts",

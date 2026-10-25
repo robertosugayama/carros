@@ -41,18 +41,9 @@ import PhotoUpload from "./PhotoUpload";
 import { wheelImage, hasDiscStyle, type DiscStyle } from "./brakeImages";
 import { generatedPhotos, mergePhotos, inlinePhoto } from "./generatedPhotos";
 import "./style.css";
+import { api } from "./api";
 type User = { id: number; name: string; role: string };
 type Project = { id: number; name: string; created: string; payload: any };
-async function api(path: string, body?: unknown, method?: string) {
-  const r = await fetch("/api/" + path, {
-    method: method || (body ? "POST" : "GET"),
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const d = await r.json();
-  if (!r.ok) throw Error(d.error || "Não foi possível concluir.");
-  return d;
-}
 function App() {
   const [tab, setTab] = useState("studio"),
     [user, setUser] = useState<User | null>(null),
@@ -192,10 +183,14 @@ function App() {
     api("me")
       .then(setUser)
       .catch(() => {});
-    api("status").then((d) => setAi(d.aiConfigured));
-    api("catalog").then((rows) =>
-      setEnabled(rows.filter((r: any) => r.enabled).map((r: any) => r.id)),
-    );
+    api("status")
+      .then((d) => setAi(d.aiConfigured))
+      .catch((e) => notify(e.message));
+    api("catalog")
+      .then((rows) =>
+        setEnabled(rows.filter((r: any) => r.enabled).map((r: any) => r.id)),
+      )
+      .catch(() => {});
   }, []);
   useEffect(() => {
     if (busy) {

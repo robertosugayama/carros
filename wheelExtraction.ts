@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { removeExteriorPurple } from "./wheelBackground.ts";
+import { removeExteriorPurple, removeChromaMatte } from "./wheelBackground.ts";
 import { WheelPreparationError } from "./aiErrors.ts";
 export type WheelGeometry = {
   found: boolean;
@@ -81,6 +81,7 @@ export async function extractWheelFace(image: Buffer, geometry: WheelGeometry) {
     .raw()
     .toBuffer({ resolveWithObject: true });
   removeExteriorPurple(pixels, info.width, info.height);
+  removeChromaMatte(pixels);
   const cleaned = await sharp(pixels, {
     raw: { width: info.width, height: info.height, channels: 4 },
   })

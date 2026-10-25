@@ -120,3 +120,19 @@ test("limpeza remove sombra roxa escura exterior e mantém detalhe roxo interno"
   assert.equal(data[(45 * 100 + 50) * 4 + 3], 255);
   assert.equal(data[(45 * 100 + 50) * 4], 149);
 });
+
+test("remove rosa e roxo escuro em vãos internos sem alterar metal cinza e bronze", async () => {
+  const { removeChromaMatte } = await import("../wheelBackground.ts");
+  const pixels = Buffer.from([
+    196, 48, 130, 255, 117, 12, 105, 255, 90, 90, 90, 255, 160, 115, 65, 255,
+  ]);
+  removeChromaMatte(pixels);
+  assert.equal(pixels[3], 0);
+  assert.equal(pixels[7], 0);
+  assert.equal(pixels[11], 255);
+  assert.equal(pixels[15], 255);
+  assert.deepEqual(
+    [...pixels.subarray(8)],
+    [90, 90, 90, 255, 160, 115, 65, 255],
+  );
+});

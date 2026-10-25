@@ -126,3 +126,20 @@ export function removeExteriorPurple(
     if (p + width < count) add(p + width);
   }
 }
+
+// Preparation explicitly requests a magenta matte. Remove that matte inside
+// enclosed spoke openings too; it need not touch an exterior transparent pixel.
+export function removeChromaMatte(pixels: Buffer) {
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i],
+      g = pixels[i + 1],
+      b = pixels[i + 2];
+    const colour = Math.min(r, b);
+    if (colour > 55 && colour - g > 35 && colour > g * 1.5) {
+      pixels[i + 3] = 0;
+      pixels[i] = 0;
+      pixels[i + 1] = 0;
+      pixels[i + 2] = 0;
+    }
+  }
+}

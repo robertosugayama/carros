@@ -1,6 +1,7 @@
 import express from "express";
 import { ensureMaster } from "./masterAccount.ts";
 import { editWheelImage } from "./imageEditing.ts";
+import { imageServiceFailure } from "./aiErrors.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
 import { db } from "./database.ts";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
@@ -390,11 +391,15 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
       (request) => ai.models.generateContent(request),
     );
     res.json({ image: output, origin: "generated" });
-  } catch {
-    res.status(502).json({
-      error:
-        "A IA não concluiu o tratamento. Confira a chave, o modelo de imagem e a cota do serviço. Use uma foto frontal de uma única roda.",
+  } catch (cause) {
+    const failure = imageServiceFailure(cause);
+    console.error("AI_IMAGE_FAILURE", {
+      code: failure.code,
+      status: failure.status,
     });
+    res
+      .status(failure.status)
+      .json({ code: failure.code, error: failure.error });
   }
 });
 app.use("/api/admin", (_req, res, next) => {

@@ -5,6 +5,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { firebaseConfig } from "./src/firebaseConfig.ts";
 import { fileURLToPath } from "node:url";
 import { editWheelImage } from "./imageEditing.ts";
+import { imageServiceFailure } from "./aiErrors.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
 import { validPlacement } from "./src/catalog.ts";
 if (
@@ -58,12 +59,10 @@ app.use("/api", async (req, res, next) => {
       },
     );
     if (!response.ok)
-      return res
-        .status(403)
-        .json({
-          error:
-            "Não foi possível validar o perfil. Verifique o Firestore e suas regras de acesso.",
-        });
+      return res.status(403).json({
+        error:
+          "Não foi possível validar o perfil. Verifique o Firestore e suas regras de acesso.",
+      });
     const profile: any = await response.json();
     if (profile.fields?.blocked?.booleanValue !== false)
       return res.status(403).json({ error: "Sua conta está bloqueada." });
@@ -97,12 +96,10 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
       .status(400)
       .json({ error: "Confira a foto e as opções de tratamento." });
   if (!process.env.GEMINI_API_KEY)
-    return res
-      .status(503)
-      .json({
-        error:
-          "Tratamento por IA não habilitado. Configure GEMINI_API_KEY na Vercel. O envio manual continua disponível.",
-      });
+    return res.status(503).json({
+      error:
+        "Tratamento por IA não habilitado. Configure GEMINI_API_KEY na Vercel. O envio manual continua disponível.",
+    });
   const last = limits.get(res.locals.user.id) || 0;
   if (Date.now() - last < 30000)
     return res
@@ -117,13 +114,15 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
       (request) => ai.models.generateContent(request),
     );
     res.json({ image: output, origin: "generated" });
-  } catch {
+  } catch (cause) {
+    const failure = imageServiceFailure(cause);
+    console.error("AI_IMAGE_FAILURE", {
+      code: failure.code,
+      status: failure.status,
+    });
     res
-      .status(502)
-      .json({
-        error:
-          "A IA não concluiu o tratamento. Confira a chave, o modelo de imagem e a cota.",
-      });
+      .status(failure.status)
+      .json({ code: failure.code, error: failure.error });
   }
 });
 app.post("/api/gemini/detect-wheels", async (req, res) => {
@@ -199,12 +198,10 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
     result.wheels = equalizeWheels(result.wheels);
     res.json(result);
   } catch {
-    res
-      .status(502)
-      .json({
-        error:
-          "A análise não foi concluída. Use o ajuste manual e verifique a configuração Gemini.",
-      });
+    res.status(502).json({
+      error:
+        "A análise não foi concluída. Use o ajuste manual e verifique a configuração Gemini.",
+    });
   }
 });
 app.use("/api", (_req, res) =>
@@ -232,13 +229,11 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) =>
-    res
-      .status(err.status || 500)
-      .json({
-        error:
-          err.status === 413
-            ? "Imagem muito grande."
-            : "Não foi possível concluir a operação.",
-      }),
+    res.status(err.status || 500).json({
+      error:
+        err.status === 413
+          ? "Imagem muito grande."
+          : "Não foi possível concluir a operação.",
+    }),
 );
 export default app;

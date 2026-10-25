@@ -145,6 +145,49 @@ test("preparo corrige perspectiva com foto inteira e normaliza contorno transpar
           ],
         }),
       ),
-    /não removeu o fundo/,
+    /não separou a roda do fundo/,
   );
+});
+
+test("preparo remove fundo magenta de resposta opaca e preserva cinza da roda", async () => {
+  const png = await sharp(
+    Buffer.from(
+      '<svg width="200" height="200"><rect width="200" height="200" fill="#ff00ff"/><circle cx="100" cy="100" r="80" fill="#808080"/><circle cx="100" cy="100" r="10" fill="#ff00ff"/></svg>',
+    ),
+  )
+    .png()
+    .toBuffer();
+  const output = await editWheelImage(
+    "data:image/png;base64," + png.toString("base64"),
+    { action: "prepare", kind: "rim" },
+    async () => ({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/png",
+                  data: png.toString("base64"),
+                },
+              },
+            ],
+          },
+        },
+      ],
+    }),
+  );
+  const { data, info } = await sharp(
+    Buffer.from(output.split(",")[1], "base64"),
+  )
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  assert.equal(info.width, 800);
+  assert.equal(data[3], 0);
+  const middle = (400 * info.width + 400) * 4;
+  assert.equal(data[middle + 3], 0, "remove o fundo também no furo central");
+  const spoke = (400 * info.width + 600) * 4;
+  assert.equal(data[spoke + 3], 255);
+  assert.ok(Math.abs(data[spoke] - data[spoke + 1]) < 8);
 });

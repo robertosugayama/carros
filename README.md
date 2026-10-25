@@ -69,6 +69,10 @@ O runtime está fixado em Node `24.x` e o Firebase Admin em `13.10.0`. A série 
 - Projetos guardam as configurações e cópias das imagens no Storage, com metadados no Firestore. As imagens não são gravadas como Base64 em documentos Firestore, respeitando o limite de 1 MiB.
 - Exportação PNG preserva rodas, cor e tipo do disco. A montagem é 2D; não mede furação, offset, folgas ou homologação.
 
+O preparo pede à IA um fundo uniforme magenta e remove essa cor no servidor, inclusive nos vãos dos raios. Isso evita depender de transparência nativa na imagem devolvida pelo Gemini. O servidor valida o resultado e não salva imagens cujo fundo não pôde ser separado. Fotos de rodas com acabamento magenta podem exigir outro tratamento; a fidelidade da perspectiva depende da resposta do modelo.
+
+Falhas de IA retornam códigos específicos para chave recusada, acesso negado, cota, modelo indisponível, tempo limite e preparo da imagem. Os logs `AI_IMAGE_FAILURE` registram apenas código e status, sem chave, imagem ou mensagem bruta do provedor. O faturamento Blaze do Firebase não garante cota na API Gemini. Não há chamada real Gemini validada neste ambiente.
+
 ## Regras e dados
 
 `users/{uid}` guarda nome, e-mail, papel, bloqueio e data, sem senhas. Projetos e manutenções são subcoleções do usuário. `wheelPhotos` reúne envios privados/públicos; `catalog` guarda disponibilidade dos modelos. Storage separa pastas de projetos, envios de rodas e catálogo público. URLs de download do Storage contêm tokens de acesso: compartilhe somente quando desejar dar acesso à imagem.

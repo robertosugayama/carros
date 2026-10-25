@@ -239,6 +239,29 @@ try {
     controlsRect.y >= fullFrame.y + fullFrame.height,
     "controles estão abaixo da foto",
   );
+  assert.ok(
+    Math.abs(fullFrame.height - fullPhoto.height) < 3,
+    "nenhuma faixa vazia abaixo da foto",
+  );
+  await page
+    .getByRole("button", { name: "Ocultar ajustes", exact: true })
+    .click();
+  assert.equal(
+    await page.locator(".mobile-fixed-controls").count(),
+    0,
+    "ocultar ajustes libera toda a área dos controles",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+      .count(),
+    0,
+  );
+  const hiddenPhoto = await page.locator(".scene").boundingBox();
+  assert.ok(Math.abs(hiddenPhoto.width - fullPhoto.width) < 1);
+  await page
+    .getByRole("button", { name: "Mostrar ajustes", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Abrir controle de posição", exact: true })
     .click();
@@ -249,10 +272,20 @@ try {
     "abrir joystick não reduz a foto",
   );
   const frozenBefore = await page.locator(".viewport").boundingBox();
+  const fixedControlsBefore = await page
+    .locator(".mobile-fixed-controls")
+    .boundingBox();
   await page.locator(".config").evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
   const frozenAfter = await page.locator(".viewport").boundingBox();
+  const fixedControlsAfter = await page
+    .locator(".mobile-fixed-controls")
+    .boundingBox();
+  assert.ok(
+    Math.abs(fixedControlsBefore.y - fixedControlsAfter.y) < 1,
+    "ajustes permanecem fixos junto da foto",
+  );
   assert.ok(
     Math.abs(frozenAfter.y - frozenBefore.y) < 1,
     "rolar ferramentas não move a foto",

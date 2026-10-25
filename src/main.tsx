@@ -19,6 +19,7 @@ import {
   Shield,
   Move,
   Eye,
+  EyeOff,
   Wrench,
   Layers,
   X,
@@ -60,6 +61,8 @@ type Project = {
   payload: any;
 };
 function App() {
+  const [mobileAdjustmentsVisible, setMobileAdjustmentsVisible] =
+    useState(true);
   const [mobileControls, setMobileControls] = useState(
     () => window.matchMedia("(max-width: 780px)").matches,
   );
@@ -755,6 +758,32 @@ function App() {
                     <span className="live-dot" /> PROVADOR VISUAL{" "}
                     <span className="small-label">VISTA LATERAL · 90°</span>
                   </span>
+                  {mobileControls && positionControls && (
+                    <button
+                      type="button"
+                      className="toggle-mobile-adjustments"
+                      aria-label={
+                        mobileAdjustmentsVisible
+                          ? "Ocultar ajustes"
+                          : "Mostrar ajustes"
+                      }
+                      title={
+                        mobileAdjustmentsVisible
+                          ? "Ocultar ajustes"
+                          : "Mostrar ajustes"
+                      }
+                      aria-expanded={mobileAdjustmentsVisible}
+                      onClick={() =>
+                        setMobileAdjustmentsVisible((value) => !value)
+                      }
+                    >
+                      {mobileAdjustmentsVisible ? (
+                        <EyeOff size={19} />
+                      ) : (
+                        <Eye size={19} />
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setWheels(defaultWheels.map((w) => ({ ...w })));
@@ -882,18 +911,28 @@ function App() {
                     </div>
                   )}
                 </div>
+                {mobileControls &&
+                  positionControls &&
+                  mobileAdjustmentsVisible && (
+                    <div
+                      className="mobile-fixed-controls mobile-photo-controls"
+                      role="group"
+                      aria-label="Ajustes fixos da foto"
+                    >
+                      {positionControls}
+                    </div>
+                  )}
               </section>
               <aside
                 className="config"
                 aria-label="Ferramentas de personalização"
               >
-                {mobileControls && (positionControls || photoActions) && (
+                {mobileControls && photoActions && (
                   <div
-                    className="mobile-photo-controls"
+                    className="mobile-photo-actions"
                     role="group"
                     aria-label="Controles da foto"
                   >
-                    {positionControls}
                     {photoActions}
                   </div>
                 )}

@@ -2442,12 +2442,56 @@ label > select {
     color: #354a26;
     touch-action: none;
   }
-  .mobile-photo-controls .photo-quick-actions {
+  .mobile-photo-actions .photo-quick-actions {
     position: static;
     z-index: auto;
     flex-wrap: wrap;
   }
-  .mobile-photo-controls .photo-quick-actions > div {
+  .mobile-photo-actions .photo-quick-actions > div {
     box-shadow: none;
+  }
+}
+
+@media (max-width: 780px) {
+  /* Fit the frozen frame to the actual photo: no reserved green strip. */
+  .workspace.has-car .viewport {
+    height: auto;
+  }
+  .mobile-fixed-controls.mobile-photo-controls {
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+  }
+  .toggle-mobile-adjustments {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #d1dbc8;
+    border-radius: 9px;
+    background: #f7f9f3;
+    color: #405431;
+    font-size: 13px;
+  }
+  .mobile-photo-actions {
+    padding: 8px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+}
+
+@media (max-width: 780px) {
+  .editor-top .toggle-mobile-adjustments {
+    width: 32px;
+    height: 28px;
+    min-width: 32px;
+    min-height: 28px;
+    padding: 4px;
+    flex-shrink: 0;
   }
 }

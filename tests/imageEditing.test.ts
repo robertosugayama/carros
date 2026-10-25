@@ -191,3 +191,49 @@ test("preparo remove fundo magenta de resposta opaca e preserva cinza da roda", 
   assert.equal(data[spoke + 3], 255);
   assert.ok(Math.abs(data[spoke] - data[spoke + 1]) < 8);
 });
+
+test("preparo aceita fundo branco ou cinza uniforme sem apagar detalhes claros isolados", async () => {
+  for (const background of ["#ffffff", "#dddddd", "#227799"]) {
+    const png = await sharp(
+      Buffer.from(
+        `<svg width="200" height="200"><rect width="200" height="200" fill="${background}"/><circle cx="100" cy="100" r="80" fill="#444444"/><circle cx="100" cy="100" r="20" fill="#ffffff"/></svg>`,
+      ),
+    )
+      .png()
+      .toBuffer();
+    const output = await editWheelImage(
+      "data:image/png;base64," + png.toString("base64"),
+      { action: "prepare", kind: "rim" },
+      async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: "image/png",
+                    data: png.toString("base64"),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    const { data, info } = await sharp(
+      Buffer.from(output.split(",")[1], "base64"),
+    )
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    assert.equal(data[3], 0);
+    const center = (400 * info.width + 400) * 4;
+    assert.equal(
+      data[center + 3],
+      255,
+      "preserva detalhes claros desconectados do fundo",
+    );
+    assert.ok(data[center] > 240);
+  }
+});

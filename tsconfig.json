@@ -20,6 +20,7 @@
     "apiRuntime.ts",
     "masterAccount.ts",
     "imageEditing.ts",
+    "wheelBackground.ts",
     "aiErrors.ts",
     "database.ts",
     "api",

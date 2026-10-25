@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { removeWheelBackground } from "./wheelBackground.ts";
 import { WheelPreparationError } from "./aiErrors.ts";
 import type { GenerateContentParameters } from "@google/genai";
 import { calipers } from "./src/catalog.ts";
@@ -35,7 +36,7 @@ export async function editWheelImage(
     throw new WheelPreparationError("Formato de imagem não permitido.");
   const instruction =
     options.action === "prepare"
-      ? `Prepare this supplied automotive ${options.kind === "rim" ? "alloy rim only" : "complete wheel and tire"} photograph for realistic compositing on a car. Automatically correct camera perspective and foreshortening: render the photographed wheel face head-on, with its circular outer edge perfectly round, hub centered and all spokes proportionally aligned. Remove visible barrel depth from an oblique view. Preserve the exact product identity, spoke count, spoke geometry, finish, logos already present, texture and natural material shading. ${options.kind === "rim" ? "Extract ONLY the metal rim, removing any surrounding tire so that the car photo retains its own tire." : "Preserve the complete tire and rim assembly."} Place the isolated wheel on a perfectly uniform pure magenta (#FF00FF) chroma-key background, also visible through open gaps between spokes. Do not add any magenta tint to the wheel itself. Do not use checkerboards, gradients or ground shadows. Our application removes this exact background automatically. Center the complete wheel in a square image, tightly framing the outer edge without clipping. Do not invent spokes, brand marks, brakes or hidden product details. Correct angled photos when the visible face provides enough detail. If severe occlusion, extreme angle, blur or multiple wheels prevent faithful correction, return only a brief explanation instead of inventing a different product. Do not ask the user to crop, center or adjust the wheel manually.`
+      ? `Prepare this supplied automotive ${options.kind === "rim" ? "alloy rim only" : "complete wheel and tire"} photograph for realistic compositing on a car. Automatically correct camera perspective and foreshortening: render the photographed wheel face head-on, with its circular outer edge perfectly round, hub centered and all spokes proportionally aligned. Remove visible barrel depth from an oblique view. Preserve the exact product identity, spoke count, spoke geometry, finish, logos already present, texture and natural material shading. ${options.kind === "rim" ? "Extract ONLY the metal rim, removing any surrounding tire so that the car photo retains its own tire." : "Preserve the complete tire and rim assembly."} Place the isolated wheel on a perfectly uniform pure magenta (#FF00FF) chroma-key background, also visible through open gaps between spokes. Do not add any magenta tint to the wheel itself. Do not use checkerboards, gradients or ground shadows. Our application removes this exact background automatically. Center the complete wheel in a square image with a clear uniform background margin of 5% on all four sides; never clip the wheel. Do not invent spokes, brand marks, brakes or hidden product details. Correct angled photos when the visible face provides enough detail. If severe occlusion, extreme angle, blur or multiple wheels prevent faithful correction, return only a brief explanation instead of inventing a different product. Do not ask the user to crop, center or adjust the wheel manually.`
       : `Edit ONLY the brake components behind the spokes in this exact supplied wheel photograph. Preserve tire, wheel spokes, finish, geometry, placement, camera and transparent background exactly. Repaint the brake caliper ${calipers[options.caliper!]?.[0]} (${calipers[options.caliper!]?.[1]}) preserving metallic shading, texture and occlusion. Make the brake disc ${options.discStyle === "solid" ? "smooth solid brushed steel WITHOUT ANY drilled holes or slots" : "realistic drilled brushed steel with small cooling holes"}. Never paint over spokes. Never alter wheel shape. Keep square front-on image and transparent exterior.`;
   const result = await generate({
     model: process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
@@ -70,25 +71,11 @@ export async function editWheelImage(
     // Gemini may return opaque PNG/JPEG even when asked for alpha. Remove the
     // requested chroma key locally instead of rejecting every opaque result.
     const { data: pixels, info } = await processed
+      .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
-    let transparent = 0;
-    for (let i = 0; i < pixels.length; i += 4) {
-      const r = pixels[i],
-        g = pixels[i + 1],
-        b = pixels[i + 2];
-      const chroma = Math.min(r, b) - g;
-      if (r > 140 && b > 140 && chroma > 65) {
-        const keep = 1 - Math.min(1, (chroma - 65) / 55);
-        pixels[i + 3] = Math.round(pixels[i + 3] * keep);
-      }
-      if (pixels[i + 3] < 10) transparent++;
-    }
-    if (transparent < info.width * info.height * 0.005)
-      throw new WheelPreparationError(
-        "A IA não separou a roda do fundo corretamente. Tente o tratamento novamente.",
-      );
+    removeWheelBackground(pixels, info.width, info.height);
     processed = sharp(pixels, {
       raw: { width: info.width, height: info.height, channels: 4 },
     });

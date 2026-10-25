@@ -13,6 +13,8 @@ const env = {
   DATA_DIR: temp,
   PORT: String(port),
   NODE_ENV: "production",
+  DATA_PROVIDER: "legacy",
+  ASSET_DIR: "/tmp/autotuner-legacy-dist",
   GEMINI_API_KEY: "",
   MASTER_EMAIL: "",
   MASTER_PASSWORD: "",

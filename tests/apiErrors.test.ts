@@ -18,7 +18,7 @@ async function withHandler(
     );
   }
 }
-test("cadastro sem banco na Vercel recebe JSON claro antes de importar aplicação", async () => {
+test("modo legado sem banco na Vercel recebe JSON claro antes de importar aplicação", async () => {
   let loaded = false;
   await withHandler(
     createApiHandler(
@@ -26,7 +26,7 @@ test("cadastro sem banco na Vercel recebe JSON claro antes de importar aplicaç�
         loaded = true;
         throw Error("Não deve carregar sem banco");
       },
-      () => ({ VERCEL: "1" }),
+      () => ({ VERCEL: "1", DATA_PROVIDER: "legacy" }),
     ),
     async (base) => {
       const r = await fetch(base + "/api/auth/register", {
@@ -49,6 +49,7 @@ test("cadastro sem banco na Vercel recebe JSON claro antes de importar aplicaç�
 test("URL inválida e falha de inicialização nunca retornam HTML nem expõem segredos", async () => {
   const env = {
     VERCEL: "1",
+    DATA_PROVIDER: "legacy",
     TURSO_DATABASE_URL: "invalid",
     TURSO_AUTH_TOKEN: "test-only-token",
   };
@@ -104,6 +105,7 @@ test("guard encaminha o caminho original e carrega a aplicação uma única vez"
       },
       () => ({
         VERCEL: "1",
+        DATA_PROVIDER: "legacy",
         TURSO_DATABASE_URL: "libsql://test.invalid",
         TURSO_AUTH_TOKEN: "test-only-token",
       }),
@@ -145,5 +147,24 @@ test("frontend trata texto de erro da Vercel sem mostrar Unexpected token", asyn
       new Response(JSON.stringify({ role: "user" }), { status: 200 }),
     ),
     { role: "user" },
+  );
+});
+
+test("Firebase na Vercel não exige variáveis Turso", async () => {
+  await withHandler(
+    createApiHandler(
+      async () => ({
+        default: (_req, res) => {
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ backend: "firebase" }));
+        },
+      }),
+      () => ({ VERCEL: "1" }),
+    ),
+    async (base) => {
+      const r = await fetch(base + "/api/status");
+      assert.equal(r.status, 200);
+      assert.equal((await r.json()).backend, "firebase");
+    },
   );
 });

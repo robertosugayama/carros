@@ -11,7 +11,7 @@ export default function Wheel({
   caliper,
   discStyle = "drilled",
 }: {
-  model?: number;
+  model?: number | string;
   finish?: number;
   size?: number;
   photo?: WheelPhoto;
@@ -57,7 +57,7 @@ export default function Wheel({
     <svg
       viewBox="0 0 1000 1000"
       role="img"
-      aria-label={`${asset.origin === "generated" ? "Imagem gerada por IA de" : "Fotografia de"} ${asset.name || models[model]?.name || "Roda enviada"}, aro ${size}, ${finishes[finish]?.[0]}`}
+      aria-label={`${asset.origin === "generated" ? "Imagem gerada por IA de" : "Fotografia de"} ${asset.name || (typeof model === "number" ? models[model]?.name : undefined) || "Roda enviada"}, aro ${size}, ${finishes[finish]?.[0]}`}
       style={{ width: "100%", height: "100%", display: "block" }}
     >
       <defs>

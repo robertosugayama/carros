@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  function active(){return request.auth!=null&&firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))&&firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.blocked==false;}
+  function master(){return active()&&firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role=='master';}
+  function image(){return request.resource.size<8*1024*1024&&request.resource.contentType.matches('image/(jpeg|png|webp)');}
+  match /users/{uid}/projects/{project}/{file} {
+   allow read: if active()&&request.auth.uid==uid;
+   allow create,update: if active()&&request.auth.uid==uid&&image();
+   allow delete: if active()&&request.auth.uid==uid;
+  }
+  match /users/{uid}/wheelPhotos/{file} {
+   allow read: if active()&&(request.auth.uid==uid||master());
+   allow create,update: if active()&&request.auth.uid==uid&&image();
+   allow delete: if active()&&request.auth.uid==uid;
+  }
+  match /catalog/{uid}/{file} {
+   allow read: if true;
+   allow create,update: if master()&&image();
+   allow delete: if master();
+  }
+ }
+}

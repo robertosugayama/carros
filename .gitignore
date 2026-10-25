@@ -4,3 +4,6 @@ data/
 .env
 .env.*
 !.env.example
+.firebase/
+*-debug.log
+*-debug.*.log

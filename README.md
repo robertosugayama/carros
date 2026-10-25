@@ -1,116 +1,98 @@
-# AutoTuner 3D — Provador de rodas e garagem virtual
+# AutoTuner 3D
 
-Aplicação web mobile-first em português. React 19 + TypeScript, Vite, Tailwind CSS, Lucide e Express. Este projeto agora ocupa a raiz do repositório `robertosugayama/carros`. O RodaBem foi preservado em backup antes da substituição; a integração das suas funções será uma próxima etapa.
+Provador de rodas em fotos com garagem, manutenção, login e catálogo multiusuário. React/TypeScript, Vite, Tailwind, Express e **Firebase**. O projeto configurado é `carros-ed674`; os identificadores web ficam em `src/firebaseConfig.ts` e são públicos, como em qualquer aplicativo Firebase. A segurança está no Authentication e nas regras de Firestore/Storage, não em esconder a chave web.
 
-## Executar no computador ou ambiente de desenvolvimento
+## Ativar no Firebase
 
-Requer Node.js 24.
+Use o [console do projeto](https://console.firebase.google.com/project/carros-ed674/overview):
+
+1. **Authentication → Sign-in method → E-mail/senha**: habilite o provedor.
+2. **Authentication → Settings → Authorized domains**: adicione `carros-ochre-phi.vercel.app` (e seu domínio próprio, se usar).
+3. **Firestore Database → Create database**: crie `(default)` em modo de produção. Na aba **Rules**, publique o conteúdo de [firebase/firestore.rules](firebase/firestore.rules). Não use regras abertas de teste.
+4. **Storage → Get started**: habilite o bucket `carros-ed674.firebasestorage.app`. Na aba **Rules**, publique [firebase/storage.rules](firebase/storage.rules). As regras consultam o perfil no Firestore; aceite a permissão entre os serviços se o console solicitar. **O Firebase Storage exige plano Blaze/faturamento para projetos novos.** Confira o plano no console antes de ativar. Login e manutenção usam Auth/Firestore; salvar projetos com fotos e enviar rodas exige Storage.
+5. Faça o deploy da versão atual na Vercel e recarregue a página.
+
+Se preferir a CLI, autentique sua conta de proprietário no Firebase e use `firebase deploy --only firestore:rules,storage --project carros-ed674`. Isso publica regras, não ativa automaticamente todos os produtos ou faturamento. Nunca envie arquivos de conta de serviço ou senhas pelo chat ou pelo Git.
+
+A ativação dos produtos e a publicação de regras no projeto real ainda precisam ser feitas pelo proprietário. A configuração web não concede permissão administrativa para realizar essas ações daqui.
+
+## Criar o primeiro master
+
+1. Cadastre sua conta no app com nome, e-mail completo e senha de pelo menos oito caracteres.
+2. No Firebase, abra **Firestore Database → Data → users**.
+3. Confira o UID e o e-mail da conta que você acabou de cadastrar. Edite **apenas** o campo `role`: de `user` para `master`. Salve.
+4. Recarregue o app. A aba **Admin** ficará disponível.
+
+A mudança feita pelo console exige acesso de proprietário ao projeto e não depende de abrir regras públicas. Usuários comuns não conseguem promover a si mesmos. Não existe senha padrão nem conta master criada pelo código do navegador. `MASTER_EMAIL`/`MASTER_PASSWORD` eram usados apenas na versão SQL anterior e **não** criam contas no Firebase. O comando `npm run admin` explica esse procedimento; promoção via CLI SQL só existe com `DATA_PROVIDER=legacy`.
+
+Se o cadastro criou a conta no Authentication, mas falhou porque o Firestore ainda não estava ativo, configure o Firestore/regras e use **Entrar** com os mesmos dados. O perfil será criado no primeiro login bem-sucedido, preservando a conta Auth existente.
+
+## Vercel
+
+Importe `robertosugayama/carros`, framework **Vite**, Node **24.x**, saída `dist`. O padrão de frontend e backend é **Firebase**: não precisa de Turso nem de credencial de conta de serviço para login/dados. Remova valores antigos `DATA_PROVIDER=legacy` ou `VITE_DATA_PROVIDER=legacy`, caso tenham sido configurados.
+
+Para IA, mantenha somente no servidor:
+
+- `GEMINI_API_KEY` (Sensitive).
+- `GEMINI_IMAGE_MODEL`: modelo de edição disponível na sua conta; padrão `gemini-2.5-flash-image`.
+- `GEMINI_MODEL`: modelo de detecção disponível na sua conta; padrão solicitado `gemini-3.8-flash`.
+
+Confirme os identificadores de modelos na sua conta. Não há chamada real Gemini validada nesta sessão. A chave web do Firebase é diferente da chave Gemini. Nunca use `VITE_` para segredos. Alterações de variáveis requerem **Redeploy**.
+
+A API Express `/api/gemini/*` verifica o ID token assinado do Firebase com o projeto correto e lê o perfil autorizado no Firestore. Os certificados de assinatura são públicos; não é necessário colocar uma chave privada de serviço no navegador ou na Vercel para esse fluxo. Perfil bloqueado não pode usar a IA.
+
+## Executar
+
+Node.js 24 ou superior:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Servidor Express e frontend na mesma porta, **3000** por padrão. Se estiver ocupada: `PORT=3100 npm run dev`. Para produção em servidor Node: `npm run build` seguido de `npm start`. Em desenvolvimento, use as variáveis já injetadas no processo ou `node --env-file=.env node_modules/tsx/dist/cli.mjs server.ts`; não coloque chaves no frontend.
+Express e Vite usam a mesma porta 3000; use `PORT=3100` se necessário. Produção local: `npm run build` e `npm start`. A configuração web já aponta para o projeto fornecido. Para segredos locais, use `node --env-file=.env node_modules/tsx/dist/cli.mjs server.ts`; `.env` não é versionado.
 
-## Provador fotográfico
+## Rodas, fotos e freios
 
-O renderizador de rodas desenhadas e o carro ilustrado foram removidos. O estúdio começa pedindo uma foto real do veículo. Além das três opções originais geradas por IA, os 18 modelos de marcas são entradas de catálogo: **fotografias reais dos fabricantes ainda precisam ser obtidas e cadastradas**. Um modelo sem foto informa a pendência; nunca recebe desenho ou foto de outro produto como substituto.
+- Envie foto lateral do carro a 90°. As rodas permanecem circulares e o zoom acompanha a foto.
+- **Ajustar tamanho das duas rodas** altera os dois diâmetros juntos pela barra horizontal. Para posicionar, arraste cada roda. Não há alça verde ou marcadores sobre a imagem.
+- Três modelos originais de aparência fotográfica estão prontos: AT Silver Split, AT Graphite Six e AT Bronze Mesh. São **imagens geradas por IA**, não fotografias de produtos de fabricantes. A interface identifica sua origem.
+- Os três modelos incluem onze cores de pinça e discos lisos/perfurados, sem chamada de IA para cada mudança. A cor modifica pixels da pinça mantendo a variação de sombras; é uma simulação de pintura.
+- **Enviar foto de roda** permite nomear um novo modelo, escolher aro/acabamento e enquadrar. Fonte é opcional para fotos próprias. **Tratar foto com IA** é opcional e exige o serviço Gemini configurado; revise antes de salvar.
+- Usuários guardam rodas em catálogo pessoal e submetem à aprovação. O master publica em **Admin → Fotos enviadas por usuários**. A publicação copia a imagem para a área pública do Storage.
+- Para fotografias próprias sem variantes de freio separadas, **Aplicar freios com IA** prepara a opção desejada, sujeita a revisão. A IA pode interpretar detalhes de forma diferente do original.
+- As 18 referências de marcas continuam aguardando fotos reais verificadas, sem substituição por desenhos ou fotos de outros modelos.
+- Projetos guardam as configurações e cópias das imagens no Storage, com metadados no Firestore. As imagens não são gravadas como Base64 em documentos Firestore, respeitando o limite de 1 MiB.
+- Exportação PNG preserva rodas, cor e tipo do disco. A montagem é 2D; não mede furação, offset, folgas ou homologação.
 
-O botão **Enviar foto de roda** está no estúdio. Todo usuário autenticado pode enviar fotos para seu catálogo; o administrador pode aprová-las para publicação compartilhada. É possível criar um novo modelo com nome próprio, sem substituir os existentes. Fonte é opcional para fotos próprias, e o crédito usa o nome do usuário quando não informado. O master também pode cadastrar diretamente em **Admin → Catálogo fotográfico real**. Há enquadramento circular e ajuste de centro/ampliação antes de salvar. PNG, JPEG e WebP são aceitos; imagens são normalizadas a WebP de 800 px com transparência fora do círculo.
+## Regras e dados
 
-- **Somente roda:** a fotografia frontal do fabricante substitui apenas a área do aro; o pneu real da foto do carro continua visível. O ajuste de aro altera a proporção visual da roda mantendo o conjunto externo fixo. Isso é uma estimativa visual, não medição física do pneu.
-- **Roda + pneu:** usa a fotografia completa do conjunto, disponível no aro fotografado. Não inventa um pneu em outros perfis.
-- Acabamentos só ficam disponíveis se houver fotografia correspondente. Não há filtros de recoloração para imitar cromado ou pintura real.
-- As três rodas originais têm 11 cores de pinça e discos perfurados ou lisos. O disco liso usa uma variante fotográfica gerada por IA; a cor é aplicada aos pixels da pinça, preservando sombras. Em fotos enviadas sem separação dos componentes, use **Aplicar freios com IA** e revise o resultado. A simulação de cor não substitui uma amostra física de pintura.
-- O recorte mantém a proporção 1:1 e os pixels da foto. Imagens em perspectiva não devem ser cadastradas como frontais: não há achatamento para disfarçar o ângulo.
-- Zoom sincronizado, antes/depois, ajuste manual dos centros e diâmetros, câmera/galeria e exportação PNG continuam disponíveis.
-- Cada projeto guarda uma cópia da fotografia do produto. Atualizações do catálogo não substituem a fotografia de projetos salvos. Projetos antigos sem foto não recebem um desenho substituto.
-- Garagem, manutenção, cadastro/login e administração de contas continuam funcionando. O banco ganha a tabela `wheel_photos` automaticamente.
+`users/{uid}` guarda nome, e-mail, papel, bloqueio e data, sem senhas. Projetos e manutenções são subcoleções do usuário. `wheelPhotos` reúne envios privados/públicos; `catalog` guarda disponibilidade dos modelos. Storage separa pastas de projetos, envios de rodas e catálogo público. URLs de download do Storage contêm tokens de acesso: compartilhe somente quando desejar dar acesso à imagem.
 
-**Aquisição de fotografias:** a conexão direta com sites de fabricantes retornou bloqueio de rede HTTP 403 neste ambiente. Os domínios necessários foram adicionados ao rascunho de rede do ambiente; isso não aplica a liberação automaticamente nem publica a Vercel. A obtenção e conferência do catálogo fotográfico permanece pendente até o acesso ser liberado. Testes usam imagens técnicas descartáveis e não comprovam realismo de um catálogo comercial ainda ausente.
+As regras bloqueiam criação/edição de papel master por usuários comuns, acesso a dados alheios e operações privadas de contas bloqueadas. O master gerencia perfis e publicações. Confirme backups, quotas e política de retenção no console antes de ampliar o uso.
 
-## Ajustar o tamanho das rodas sobre a foto
-
-Depois de carregar a foto do carro, use **Ajustar tamanho das duas rodas**, logo abaixo da imagem. Um único controle horizontal altera o diâmetro das duas rodas juntas. As posições continuam independentes. Para mover, arraste a roda. Não há alça verde, marcador de centro ou contorno sobre a foto. A barra horizontal também responde às setas do teclado. Projetos antigos e resultados da IA com tamanhos diferentes são equalizados pela média dos diâmetros, sem alterar os centros.
-
-O centro não muda durante o redimensionamento e a roda continua circular, inclusive com zoom. **Referência do aro** descreve o aro da imagem; para conjuntos completos fotografados/gerados ela não é o controle de encaixe na foto. O ajuste não exige cadastrar outra fotografia.
-
-## Primeira conta master
-
-Para criar automaticamente o primeiro master na Vercel, configure **Settings → Environment Variables**:
-
-- `MASTER_EMAIL`: e-mail de login escolhido pelo proprietário.
-- `MASTER_PASSWORD`: senha escolhida, marcada como Sensitive. Nunca versione esse valor.
-
-Faça **Redeploy**. Com o banco Turso configurado, a conta é criada como master antes de atender os acessos. Depois entre com esses dados pela tela normal de login. O bootstrap aceita endereços de teste com domínio local e senhas de pelo menos seis caracteres; cadastros públicos continuam exigindo e-mail completo e oito caracteres. Não existe senha padrão no código.
-
-Se o e-mail já existir como usuário comum, a promoção ocorre apenas se a senha configurada corresponder à senha existente. Conflitos preservam a conta e são registrados sem imprimir valores. Master já existente mantém a senha e o status; mudar variáveis não redefine sua senha nem desbloqueia contas. Depois de confirmar o acesso, remova **ambas** as variáveis iniciais da Vercel e faça outro Redeploy: a conta permanece no banco.
-
-Alternativamente, cadastre sua conta normalmente e execute no servidor, com o banco correto:
-
-```sh
-npm run admin -- seu-email@exemplo.com
-```
-
-## Gemini
-
-Configure `GEMINI_API_KEY` somente no servidor. O modelo solicitado, `gemini-3.8-flash`, está configurado como padrão, mas **a disponibilidade desse identificador não foi confirmada**. Se ele não existir ou não estiver disponível na sua conta, defina `GEMINI_MODEL` com um identificador compatível disponível no Google AI Studio. Não há fallback silencioso para outro modelo. A ausência da chave e falhas da API são tratadas explicitamente; uma detecção real ainda não foi validada.
-
-A foto enviada é compartilhada com o serviço Gemini quando o usuário escolhe detectar com IA. Fotos enviadas manualmente não vão ao Gemini, exceto quando o usuário escolhe **Tratar foto com IA** ou **Aplicar freios com IA**. A API valida posições normalizadas, diâmetros e aro retornados; fotos fora de perfil devem ser recusadas pelo modelo. Resultados da IA são estimativas revisáveis pelo usuário.
-
-## Vercel, passo a passo
-
-1. Envie **o conteúdo desta pasta** para o repositório que receberá o AutoTuner. Não misture os arquivos com o RodaBem. Se usar uma subpasta no GitHub, selecione essa subpasta em Root Directory na Vercel.
-2. Crie um banco no Turso e obtenha a URL `libsql://…` e um token.
-3. Na Vercel, importe o repositório, escolha framework **Vite**, Node **24.x**. `vercel.json` configura `npm run build`, saída `dist` e API Express em `api/index.ts`.
-4. Em Settings → Environment Variables, configure `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` (sensível). Para usar IA, configure também `GEMINI_API_KEY` (sensível). `GEMINI_MODEL` controla detecção, e `GEMINI_IMAGE_MODEL` controla tratamento/edição de imagens (padrão `gemini-2.5-flash-image`; confirme disponibilidade na sua conta). Nunca use prefixo `VITE_` para segredos. Não envie chaves por chat, Git ou capturas de tela.
-5. Faça o deploy e cadastre uma conta. Valide login, salvar/reabrir um projeto, registrar manutenção e sair/entrar novamente. Promova sua conta no banco remoto com o comando administrativo acima.
-
-As tabelas são criadas automaticamente. A Vercel exige banco remoto e ativa cookie Secure; nunca armazene a garagem em `/tmp`. Sem URL do banco, o servidor recusa iniciar na Vercel. Em desenvolvimento, o padrão é SQLite local em `data/app.db`; preserve essa pasta e faça backups. Não há migração automática de um banco local existente para o remoto.
-
-**Publicação:** o envio ao GitHub não cria nem confirma um deploy na Vercel. O banco Turso precisa ser configurado, e nenhum link público foi criado por este trabalho. As instruções e a configuração Vercel estão preparadas; publicação remota não foi validada.
-
-## Testes
+## Verificação
 
 ```sh
 npm run build
 npm test
-node tests/browser.mjs
+npm run test:firebase
 ```
 
-O teste de navegador usa Chromium instalado em `/usr/bin/chromium`; ajuste `executablePath` em outro computador ou instale o navegador do Playwright. Usa servidor e banco temporários próprios. Verifica ausência de desenhos substitutos, cadastro master de fotografia com recorte, uso de pixels da imagem, círculos, zoom, antes/depois, celular sem overflow, projeto salvo/reaberto e PNG. As imagens técnicas dos testes ficam exclusivamente em banco temporário, nunca são publicadas como fotos de fabricantes. As imagens `desktop.png` e `mobile.png` são capturas reais da interface durante os testes. Testes de API verificam isolamento entre usuários, manutenção, validações, bloqueio e permissões master. Gemini e Turso remoto não são simulados como funcionando.
+`test:firebase` e `test:browser` iniciam **emuladores locais** de Authentication e Firestore com o projeto `demo-autotuner`, sem criar usuários no projeto real. Requerem Java 21, Python 3 e Chromium em `/usr/bin/chromium`. O script obtém o componente oficial do Google Cloud SDK e confere SHA-256 do manifesto, ou aceita `FIRESTORE_EMULATOR_JAR` fornecido pelo operador. Não modifica o JAR nem desativa verificações.
 
-## Limites desta versão
+Foram exercitados cadastro/login pelo SDK real contra emuladores, persistência de manutenção, promoção confiável, prevenção de autopromoção, isolamento de dados, bloqueio e verificação do token no backend IA. **Storage e chamadas Gemini reais não foram exercitados**; o download do runtime do emulador Storage foi bloqueado pela rede e a ativação real do Firebase pertence ao proprietário.
 
-A montagem é 2D com fotografias reais, sem reconstrução tridimensional. Não verifica furação, offset, folgas ou homologação. Consulte um especialista antes da instalação. O nome de cada produto deve ser conferido na fonte do fabricante antes de cadastrar sua imagem; os nomes existentes no catálogo não comprovam correspondência sem a fotografia.
+O modo anterior permanece preservado em `legacyServer.ts`/`database.ts`. `npm run test:browser:legacy` valida montagem, tratamento simulado, publicação, freios, histórico e PNG usando servidor/banco temporários e uma build separada em `/tmp`, sem alterar a build Firebase de produção. Esse teste não comprova upload remoto no Firebase Storage.
 
-As fotos completas são armazenadas no banco nesta versão. Para muitos modelos/variantes e alto tráfego, use armazenamento de objetos e miniaturas. Configure backups, rate limiting compartilhado, política de privacidade/retensão e recuperação de senha antes de ampliar o acesso público. Uma detecção Gemini real e o banco Turso remoto continuam sem validação neste ambiente.
+O RodaBem anterior segue no backup verificado `/workspace/rodabem-7j53djxl/rodabem-completo.tar.gz`, para integração futura solicitada pelo proprietário. Não há migração automática de contas SQL para Firebase. A implantação real e seus produtos não foram confirmados nesta sessão.
 
-## Imagens geradas por IA
+### CORS de imagens para exportação
 
-O catálogo inclui três conjuntos originais de aparência fotográfica: **AT Silver Split**, **AT Graphite Six** e **AT Bronze Mesh**, com pneus e freios. São imagens geradas por IA, não fotografias de produtos existentes ou de fabricantes. A interface identifica a origem como **GERADA POR IA**. Elas não correspondem aos 18 modelos de marcas do catálogo original e têm IDs próprios (18 a 20).
+A exportação usa canvas no navegador. Se o bucket bloquear leitura entre origens, aplique `firebase/storage.cors.json` no Cloud Shell da sua conta de proprietário:
 
-Os arquivos PNG transparentes estão em `public/wheels`, disponíveis mesmo antes de configurar o banco. Fotos reais cadastradas pelo master são preservadas e podem ampliar o catálogo. Para modelos de fabricantes, ainda faltam as fotos reais verificadas. Os conjuntos gerados representam visualmente aro 18 para a simulação; não certificam dimensão, material ou compatibilidade real.
+```sh
+gcloud storage buckets update gs://carros-ed674.firebasestorage.app --cors-file=firebase/storage.cors.json
+```
 
-O catálogo agora reúne 18 referências pendentes de fotos e 3 opções originais prontas. Ao salvar, cada imagem é incorporada ao projeto em WebP; ao exportar PNG, as imagens externas do SVG são incorporadas antes de renderizar para evitar rodas ausentes no arquivo final.
-
-## Tratamento de novas fotos por IA
-
-1. Entre na conta e clique em **Enviar foto de roda**, no estúdio.
-2. Dê um nome, selecione uma foto frontal de uma única roda, o conteúdo (aro ou conjunto), aro e acabamento. Fotos próprias não exigem link externo.
-3. Clique em **Tratar foto com IA** para remover o fundo e enquadrar. Você também pode enquadrar manualmente, sem IA.
-4. Revise a imagem e confirme os dados antes de salvar. Imagens tratadas têm identificação de IA. As imagens originais não são substituídas automaticamente sem a confirmação.
-5. Usuários comuns guardam fotos no catálogo pessoal. O master publica os envios em **Admin → Fotos enviadas por usuários**. Usuários não podem sobrescrever o catálogo público de outros.
-
-`POST /api/gemini/edit-wheel` usa `@google/genai` para tratamento ou edição de freios; valida o raster antes da chamada, limita frequência, usa prazo de 45 segundos e normaliza a resposta com Sharp para WebP 800 px. Somente contas autenticadas podem chamar. Não publica automaticamente o resultado; o usuário deve revisar/salvar. Modelos gerados ou tratados por IA podem diferir do produto original, por isso a revisão é necessária.
-
-**Validação:** testes cobrem a ausência de chave e o processamento de uma resposta simulada. Uma chamada real ao Gemini de edição ainda não foi validada porque `GEMINI_API_KEY` não está presente neste ambiente. Ausência de chave, modelo indisponível, limites e falhas são informados; não são apresentados como tratamento bem-sucedido. As três variantes de disco liso já estão incluídas no app e não exigem esse serviço.
-
-## Erros no cadastro na Vercel
-
-A API precisa de `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` em **Production**, além de um novo deploy após configurar as variáveis. A chave Gemini é para IA e não configura nem substitui o banco. Cadastros, logins e master só funcionam com o banco conectado.
-
-`api/index.ts` carrega o Express por meio de `apiRuntime.ts`, que responde JSON com HTTP 503 se faltarem as variáveis, se a URL for inválida ou se a inicialização falhar. Erros de importação de dependências também são tratados. Não há fallback para SQLite temporário na Vercel. O frontend trata respostas em texto/HTML sem mostrar um erro técnico de parse JSON.
-
-Para diagnóstico, abra `/api/status` no domínio do app após o deploy. `DATABASE_NOT_CONFIGURED` indica que faltam variáveis; `INVALID_DATABASE_URL` indica URL inválida; `DATABASE_CONNECTION_FAILED` indica erro ao conectar; `SERVICE_STARTUP_FAILED` pede inspeção dos logs de Functions. O teste local não confirma o estado de uma implantação remota.
+Use o arquivo do repositório e adicione seu domínio próprio se necessário. CORS não substitui as regras de autorização. A configuração CORS do bucket real não foi aplicada nem validada nesta sessão.

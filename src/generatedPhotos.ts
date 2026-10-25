@@ -54,6 +54,22 @@ export function mergePhotos(remote: WheelPhoto[]) {
 }
 export async function inlinePhoto(image: string): Promise<string> {
   if (image.startsWith("data:")) return image;
+  if (
+    image.startsWith("https://firebasestorage.googleapis.com/") ||
+    (import.meta.env.VITE_FIREBASE_EMULATORS === "true" &&
+      image.startsWith("http://127.0.0.1:9199/"))
+  ) {
+    const response = await fetch(image);
+    if (!response.ok)
+      throw Error("Não foi possível carregar a imagem do Firebase Storage.");
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
   if (!image.startsWith("/wheels/"))
     throw Error("Imagem de catálogo inválida.");
   const img = new Image();

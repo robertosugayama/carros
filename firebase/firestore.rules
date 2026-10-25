@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signed(){return request.auth!=null;}
+  function active(){return signed()&&exists(/databases/$(database)/documents/users/$(request.auth.uid))&&get(/databases/$(database)/documents/users/$(request.auth.uid)).data.blocked==false;}
+  function master(){return active()&&get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role=='master';}
+  function owner(uid){return active()&&request.auth.uid==uid;}
+  function validProfile(d){return d.name is string&&d.name.size()>0&&d.name.size()<=80&&d.role in ['user','master']&&d.blocked is bool;}
+  match /users/{uid} {
+   allow get: if signed()&&(request.auth.uid==uid||master());
+   allow list: if master();
+   allow create: if signed()&&request.auth.uid==uid&&request.resource.data.keys().hasOnly(['name','email','role','blocked','createdAt'])&&validProfile(request.resource.data)&&request.resource.data.role=='user'&&request.resource.data.blocked==false&&request.resource.data.email==request.auth.token.email&&request.resource.data.createdAt==request.time;
+   allow update: if validProfile(request.resource.data)&&((owner(uid)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))||(master()&&request.auth.uid!=uid&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role','blocked'])));
+   allow delete: if false;
+   match /projects/{id} {
+    allow read,delete: if owner(uid);
+    allow create,update: if owner(uid)&&request.resource.data.keys().hasOnly(['name','payload','createdAt','files'])&&request.resource.data.name is string&&request.resource.data.name.size()>0&&request.resource.data.name.size()<=80&&request.resource.data.payload is map&&request.resource.data.payload.wheels.size()==2&&request.resource.data.payload.wheels[0].diameter==request.resource.data.payload.wheels[1].diameter;
+   }
+   match /maintenance/{id} {
+    allow read,delete: if owner(uid);
+    allow create,update: if owner(uid)&&request.resource.data.keys().hasOnly(['vehicle','kind','date','km','notes','createdAt'])&&request.resource.data.vehicle is string&&request.resource.data.vehicle.size()>0&&request.resource.data.vehicle.size()<=80&&request.resource.data.kind in ['Óleo','Rodas e pneus','Freios','Revisão']&&request.resource.data.km is number&&request.resource.data.km>=0&&request.resource.data.notes is string&&request.resource.data.notes.size()<=2000&&request.resource.data.date is string;
+   }
+  }
+  match /catalog/{id} {
+   allow read: if true;
+   allow write: if master()&&request.resource.data.keys().hasOnly(['enabled'])&&request.resource.data.enabled is bool;
+  }
+  match /wheelPhotos/{id} {
+   allow read: if master()||resource.data.public==true||(active()&&resource.data.owner_id==request.auth.uid);
+   allow create: if active()&&request.resource.data.keys().hasOnly(['owner_id','model','finish','size','image','solidImage','source','credit','name','origin','kind','public','createdAt'])&&request.resource.data.owner_id==request.auth.uid&&request.resource.data.name is string&&request.resource.data.name.size()>0&&request.resource.data.name.size()<=80&&request.resource.data.image is string&&request.resource.data.image.size()<=2000&&request.resource.data.source is string&&request.resource.data.source.size()<=1000&&(request.resource.data.source==''||request.resource.data.source.matches('https?://.*'))&&request.resource.data.credit is string&&request.resource.data.credit.size()<=200&&request.resource.data.origin in ['photograph','generated']&&request.resource.data.public is bool&&request.resource.data.finish is int&&request.resource.data.finish>=0&&request.resource.data.finish<=6&&request.resource.data.size is int&&request.resource.data.size>=14&&request.resource.data.size<=22&&request.resource.data.kind in ['rim','assembly']&&((request.resource.data.model==id&&request.resource.data.public==false)||(master()&&request.resource.data.public==true));
+   allow update: if master()&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['public','image','solidImage'])&&request.resource.data.public==true;
+   allow delete: if master()||(owner(resource.data.owner_id)&&resource.data.public==false);
+  }
+ }
+}

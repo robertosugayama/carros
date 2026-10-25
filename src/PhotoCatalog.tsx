@@ -5,8 +5,8 @@ export type WheelPhoto = {
   caliperHue?: number;
   discStyle?: "drilled" | "solid";
   origin?: "generated" | "photograph";
-  id: number;
-  model: number;
+  id: number | string;
+  model: number | string;
   finish: number;
   size: number;
   image: string;
@@ -18,7 +18,7 @@ export const PhotoCatalog = createContext<WheelPhoto[]>([]);
 export const usePhotoCatalog = () => useContext(PhotoCatalog);
 export function findPhoto(
   photos: WheelPhoto[],
-  model: number,
+  model: number | string,
   finish: number,
   size: number,
 ) {

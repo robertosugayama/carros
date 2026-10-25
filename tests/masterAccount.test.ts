@@ -94,6 +94,7 @@ test("servidor cria master no deploy e aceita login com domínio local e senha d
         DATA_DIR: dir,
         PORT: String(port),
         NODE_ENV: "production",
+        DATA_PROVIDER: "legacy",
         TURSO_DATABASE_URL: "",
         TURSO_AUTH_TOKEN: "",
         GEMINI_API_KEY: "",

@@ -9,13 +9,17 @@
     "start": "NODE_ENV=production tsx server.ts",
     "test": "tsx --test tests/*.test.ts",
     "admin": "tsx promote.ts",
-    "test:browser": "node tests/browser.mjs"
+    "test:browser": "node scripts/run-firebase-tests.mjs",
+    "test:browser:legacy": "VITE_DATA_PROVIDER=legacy vite build --outDir /tmp/autotuner-legacy-dist --emptyOutDir && node tests/browser.mjs",
+    "test:firebase": "node scripts/run-firebase-tests.mjs"
   },
   "dependencies": {
     "@google/genai": "latest",
     "@libsql/client": "^0.18.0",
     "@tailwindcss/vite": "latest",
     "express": "^5.1.0",
+    "firebase": "^13.1.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "latest",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -25,11 +29,13 @@
     "vite": "^7.0.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@playwright/test": "^1.64.1",
     "@types/express": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "firebase-tools": "^15.34.1",
     "typescript": "latest"
   },
   "engines": {

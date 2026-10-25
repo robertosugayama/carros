@@ -35,6 +35,7 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
     DATA_DIR: dir,
     PORT: String(port),
     NODE_ENV: "production",
+    DATA_PROVIDER: "legacy",
     GEMINI_API_KEY: "",
     MASTER_EMAIL: "",
     MASTER_PASSWORD: "",

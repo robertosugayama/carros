@@ -14,7 +14,7 @@ export function createApiHandler(
   }
   return async (req: IncomingMessage, res: ServerResponse) => {
     const env = config();
-    if (env.VERCEL) {
+    if (env.VERCEL && env.DATA_PROVIDER === "legacy") {
       if (!env.TURSO_DATABASE_URL || !env.TURSO_AUTH_TOKEN)
         return error(
           res,
@@ -59,7 +59,7 @@ export function createApiHandler(
           : "SERVICE_STARTUP_FAILED",
         e.name === "LibsqlError"
           ? "Não foi possível conectar ao banco de dados. Confira a URL e o token do Turso na Vercel e consulte os logs da implantação."
-          : "O serviço de cadastro não conseguiu iniciar. Consulte os logs de Functions na Vercel para identificar a falha.",
+          : "O serviço do aplicativo não conseguiu iniciar. Consulte os logs de Functions na Vercel para identificar a falha.",
       );
     }
     return app(req, res);

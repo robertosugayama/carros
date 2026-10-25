@@ -42,8 +42,13 @@ import { wheelImage, hasDiscStyle, type DiscStyle } from "./brakeImages";
 import { generatedPhotos, mergePhotos, inlinePhoto } from "./generatedPhotos";
 import "./style.css";
 import { api } from "./api";
-type User = { id: number; name: string; role: string };
-type Project = { id: number; name: string; created: string; payload: any };
+type User = { id: number | string; name: string; role: string };
+type Project = {
+  id: number | string;
+  name: string;
+  created: string;
+  payload: any;
+};
 function App() {
   const [tab, setTab] = useState("studio"),
     [user, setUser] = useState<User | null>(null),
@@ -51,7 +56,7 @@ function App() {
     [register, setRegister] = useState(false),
     [message, setMessage] = useState(""),
     [image, setImage] = useState(""),
-    [model, setModel] = useState(18),
+    [model, setModel] = useState<number | string>(18),
     [finish, setFinish] = useState(1),
     [caliper, setCaliper] = useState(4),
     [angle, setAngle] = useState(20),
@@ -84,7 +89,7 @@ function App() {
     ...Array.from(
       new Map(
         photos
-          .filter((p) => p.model >= 1000)
+          .filter((p) => typeof p.model === "string" || p.model >= 1000)
           .map((p) => [
             p.model,
             {
@@ -99,7 +104,7 @@ function App() {
       ).values(),
     ),
   ];
-  const modelName = (id: number) =>
+  const modelName = (id: number | string) =>
     models.find((m) => m.id === id)?.name || "Roda enviada";
   const activePhoto =
     savedPhoto?.model === model &&
@@ -110,7 +115,7 @@ function App() {
         photos.find(
           (p) => p.model === model && p.finish === finish && p.kind === "rim",
         );
-  function chooseModel(id: number) {
+  function chooseModel(id: number | string) {
     setModel(id);
     setBrakesDirty(false);
     setSavedPhoto(undefined);
@@ -590,6 +595,7 @@ function App() {
                     <div ref={scene} className="scene" hidden={!image}>
                       <img
                         ref={photo}
+                        crossOrigin="anonymous"
                         src={image || undefined}
                         alt="Sua foto real de perfil do veículo"
                         draggable={false}
@@ -807,10 +813,24 @@ function App() {
                         new Set(
                           photos
                             .map((p) => p.model)
-                            .filter((id) => enabled.includes(id)),
+                            .filter(
+                              (id) =>
+                                typeof id === "string" ||
+                                id >= 1000 ||
+                                enabled.includes(id),
+                            ),
                         ).size
                       }{" "}
-                      COM IMAGEM / {enabled.length} MODELOS
+                      COM IMAGEM /{" "}
+                      {
+                        models.filter(
+                          (m) =>
+                            typeof m.id === "string" ||
+                            m.id >= 1000 ||
+                            enabled.includes(m.id),
+                        ).length
+                      }{" "}
+                      MODELOS
                     </span>
                   </div>
                   <button
@@ -874,7 +894,10 @@ function App() {
                     {models
                       .filter(
                         (m) =>
-                          (enabled.includes(m.id) || m.id >= 1000) &&
+                          ((typeof m.id === "number" &&
+                            enabled.includes(m.id)) ||
+                            typeof m.id === "string" ||
+                            m.id >= 1000) &&
                           (m.name + " " + m.subtitle)
                             .toLowerCase()
                             .includes(query.toLowerCase()),
@@ -1404,12 +1427,14 @@ function App() {
                 <h2 className="catalog-title">Catálogo público</h2>
                 <p>Ative ou oculte modelos disponíveis no estúdio.</p>
                 {models
-                  .filter((m) => m.id < 1000)
+                  .filter((m) => typeof m.id === "number" && m.id < 1000)
                   .map((m) => (
                     <label className="catalog-admin" key={m.id}>
                       <input
                         type="checkbox"
-                        checked={enabled.includes(m.id)}
+                        checked={
+                          typeof m.id === "number" && enabled.includes(m.id)
+                        }
                         onChange={async (e) => {
                           const checked = e.target.checked;
                           try {
@@ -1419,7 +1444,7 @@ function App() {
                             });
                             setEnabled((v) =>
                               checked
-                                ? [...v, m.id]
+                                ? [...v, Number(m.id)]
                                 : v.filter((id) => id !== m.id),
                             );
                           } catch (e: any) {

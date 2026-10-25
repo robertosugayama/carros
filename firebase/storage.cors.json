@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://carros-ochre-phi.vercel.app",
+      "http://localhost:3000",
+      "http://localhost:3100"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

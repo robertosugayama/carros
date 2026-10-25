@@ -52,6 +52,10 @@ npm run dev
 
 Express e Vite usam a mesma porta 3000; use `PORT=3100` se necessário. Produção local: `npm run build` e `npm start`. A configuração web já aponta para o projeto fornecido. Para segredos locais, use `node --env-file=.env node_modules/tsx/dist/cli.mjs server.ts`; `.env` não é versionado.
 
+## Compatibilidade das Functions na Vercel
+
+O runtime está fixado em Node `24.x` e o Firebase Admin em `13.10.0`. A série Admin 14 traz `jwks-rsa` 4, que faz `require()` do módulo ESM `jose` 6; com interoperabilidade `require(ESM)` desativada isso causa `ERR_REQUIRE_ESM` durante a inicialização de todas as rotas da API. Não atualizar essa dependência sem executar `npm test`, que inclui inicialização do handler com `--no-experimental-require-module`. O teste verifica `/api/status` e rejeição de token inválido, sem chave privada ou chamada Gemini.
+
 ## Rodas, fotos e freios
 
 - Envie foto lateral do carro a 90°. As rodas permanecem circulares e o zoom acompanha a foto.

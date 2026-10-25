@@ -22,6 +22,7 @@
     "imageEditing.ts",
     "wheelBackground.ts",
     "wheelExtraction.ts",
+    "storageUpload.ts",
     "aiErrors.ts",
     "database.ts",
     "api",

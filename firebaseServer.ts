@@ -1,4 +1,5 @@
 import express from "express";
+import { uploadStorageImage } from "./storageUpload.ts";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -78,6 +79,26 @@ app.use("/api", async (req, res, next) => {
   }
 });
 const limits = new Map<string, number>();
+app.post("/api/storage/upload", async (req, res) => {
+  try {
+    const token = req.headers.authorization!.match(/^Bearer (.+)$/)![1];
+    const result = await uploadStorageImage(
+      req.body,
+      res.locals.user,
+      token,
+      firebaseConfig.storageBucket,
+    );
+    res.status(result.status).json(result.body);
+  } catch {
+    res
+      .status(504)
+      .json({
+        error:
+          "O envio ao Storage demorou além do limite. A foto tratada foi mantida; tente salvar novamente.",
+      });
+  }
+});
+
 app.post("/api/gemini/edit-wheel", async (req, res) => {
   const { image, action, kind = "assembly", caliper, discStyle } = req.body;
   if (

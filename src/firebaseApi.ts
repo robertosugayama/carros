@@ -57,6 +57,8 @@ function message(cause: any) {
       "O Storage negou o acesso. Publique as regras de Storage fornecidas com o projeto.",
     "storage/bucket-not-found":
       "Ative o Firebase Storage no console e configure o bucket do projeto.",
+    "storage/retry-limit-exceeded":
+      "Não foi possível conectar ao Storage. Confira se o bucket está ativo e tente salvar novamente; a foto tratada foi mantida.",
     "storage/unknown":
       "Não foi possível enviar a imagem. Verifique se o Firebase Storage está ativo e suas regras foram publicadas.",
     "auth/network-request-failed":
@@ -131,9 +133,28 @@ async function upload(image: string, folder: string, files?: string[]) {
         ? "jpg"
         : "webp");
   const reference = ref(storage, path);
-  await uploadString(reference, image, "data_url");
-  files?.push(path);
-  return getDownloadURL(reference);
+  try {
+    await uploadString(reference, image, "data_url");
+    const url = await getDownloadURL(reference);
+    files?.push(path);
+    return url;
+  } catch (cause: any) {
+    if (cause?.code !== "storage/retry-limit-exceeded") throw cause;
+    const token = await (await current()).getIdToken();
+    const response = await fetch("/api/storage/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ path, image }),
+    });
+    const data = await response.json();
+    if (!response.ok || typeof data.image !== "string")
+      throw Error(data.error || "Não foi possível salvar a imagem.");
+    files?.push(path);
+    return data.image;
+  }
 }
 async function uploadPayload(payload: any, uid: string, id: string) {
   const copy = JSON.parse(JSON.stringify(payload)),

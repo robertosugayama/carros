@@ -101,3 +101,22 @@ test("extração rejeita localização incerta e polígonos inválidos", async (
     /inválido/,
   );
 });
+
+test("limpeza remove sombra roxa escura exterior e mantém detalhe roxo interno", async () => {
+  const { removeExteriorPurple } = await import("../wheelBackground.ts");
+  const png = await sharp(
+    Buffer.from(
+      '<svg width="100" height="100"><circle cx="50" cy="45" r="35" fill="#555"/><circle cx="50" cy="45" r="8" fill="#950095"/><rect x="20" y="80" width="60" height="8" fill="#750078"/></svg>',
+    ),
+  )
+    .png()
+    .toBuffer();
+  const { data, info } = await sharp(png)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  removeExteriorPurple(data, info.width, info.height);
+  assert.equal(data[(84 * 100 + 50) * 4 + 3], 0);
+  assert.equal(data[(45 * 100 + 50) * 4 + 3], 255);
+  assert.equal(data[(45 * 100 + 50) * 4], 149);
+});

@@ -106,3 +106,9 @@ gcloud storage buckets update gs://carros-ed674.firebasestorage.app --cors-file=
 ```
 
 Use o arquivo do repositório e adicione seu domínio próprio se necessário. CORS não substitui as regras de autorização. A configuração CORS do bucket real não foi aplicada nem validada nesta sessão.
+
+### Envio de imagens e resíduo de fundo
+
+Após a remoção inicial, o preparo remove resíduos roxos escuros ligados ao exterior transparente. Detalhes roxos interiores desconectados são preservados. Fotos com pintura roxa na própria borda exigem conferência visual, pois podem se confundir com o fundo solicitado.
+
+Se o SDK do Storage esgotar as tentativas, o frontend tenta `/api/storage/upload` na mesma origem. A API verifica o ID token e o perfil, restringe destinos ao usuário (ou catálogo para master), e encaminha o mesmo token ao endpoint Firebase Storage; não usa uma conta administrativa nem ignora regras. A imagem tratada permanece no formulário em caso de erro. O retorno distingue bucket ausente, acesso negado e indisponibilidade. Testes locais dessa alternativa usam respostas HTTP simuladas; bucket e regras reais ainda dependem da configuração do proprietário.

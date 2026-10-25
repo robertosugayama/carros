@@ -1,5 +1,8 @@
 import sharp from "sharp";
-import { removeWheelBackground } from "./wheelBackground.ts";
+import {
+  removeWheelBackground,
+  removeExteriorPurple,
+} from "./wheelBackground.ts";
 import { WheelPreparationError } from "./aiErrors.ts";
 import { Type, type GenerateContentParameters } from "@google/genai";
 import { extractWheelFace } from "./wheelExtraction.ts";
@@ -79,6 +82,7 @@ export async function editWheelImage(
       .toBuffer({ resolveWithObject: true });
     try {
       removeWheelBackground(pixels, info.width, info.height);
+      removeExteriorPurple(pixels, info.width, info.height);
     } catch (cause) {
       if (!(cause instanceof WheelPreparationError)) throw cause;
       // Use the untouched generated image: a failed colour pass may have erased pixels.

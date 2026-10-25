@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { removeExteriorPurple } from "./wheelBackground.ts";
 import { WheelPreparationError } from "./aiErrors.ts";
 export type WheelGeometry = {
   found: boolean;
@@ -75,10 +76,20 @@ export async function extractWheelFace(image: Buffer, geometry: WheelGeometry) {
     .composite([{ input: mask, blend: "dest-in" }])
     .png()
     .toBuffer();
-  const stats = await sharp(extracted).stats();
+  const { data: pixels, info } = await sharp(extracted)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  removeExteriorPurple(pixels, info.width, info.height);
+  const cleaned = await sharp(pixels, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  const stats = await sharp(cleaned).stats();
   if (stats.channels[3].mean < 35)
     throw new WheelPreparationError(
       "A IA não conseguiu preservar a roda no recorte.",
     );
-  return extracted;
+  return cleaned;
 }

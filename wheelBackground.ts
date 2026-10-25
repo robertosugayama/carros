@@ -81,3 +81,48 @@ export function removeWheelBackground(
       "A IA não separou a roda do fundo corretamente. Tente outra foto mais nítida de uma única roda.",
     );
 }
+
+// Remove dark chroma-key shadows touching the exterior, without recolouring metal
+// or deleting an isolated purple detail inside the wheel.
+export function removeExteriorPurple(
+  pixels: Buffer,
+  width: number,
+  height: number,
+) {
+  const count = width * height,
+    visited = new Uint8Array(count),
+    queue = new Uint32Array(count);
+  let head = 0,
+    tail = 0;
+  const purple = (p: number) => {
+    const i = p * 4,
+      r = pixels[i],
+      g = pixels[i + 1],
+      b = pixels[i + 2];
+    return (
+      Math.min(r, b) > 35 && Math.min(r, b) - g > 28 && Math.min(r, b) > g * 1.4
+    );
+  };
+  const add = (p: number) => {
+    if (visited[p]) return;
+    visited[p] = 1;
+    if (pixels[p * 4 + 3] < 12 || purple(p)) queue[tail++] = p;
+  };
+  for (let x = 0; x < width; x++) {
+    add(x);
+    add((height - 1) * width + x);
+  }
+  for (let y = 1; y < height - 1; y++) {
+    add(y * width);
+    add(y * width + width - 1);
+  }
+  while (head < tail) {
+    const p = queue[head++];
+    pixels[p * 4 + 3] = 0;
+    const x = p % width;
+    if (x > 0) add(p - 1);
+    if (x + 1 < width) add(p + 1);
+    if (p >= width) add(p - width);
+    if (p + width < count) add(p + width);
+  }
+}

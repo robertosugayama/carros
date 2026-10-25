@@ -38,13 +38,20 @@ O centro não muda durante o redimensionamento e a roda continua circular, inclu
 
 ## Primeira conta master
 
-Cadastre sua própria conta no app. No servidor, com o banco correto selecionado:
+Para criar automaticamente o primeiro master na Vercel, configure **Settings → Environment Variables**:
+
+- `MASTER_EMAIL`: e-mail de login escolhido pelo proprietário.
+- `MASTER_PASSWORD`: senha escolhida, marcada como Sensitive. Nunca versione esse valor.
+
+Faça **Redeploy**. Com o banco Turso configurado, a conta é criada como master antes de atender os acessos. Depois entre com esses dados pela tela normal de login. O bootstrap aceita endereços de teste com domínio local e senhas de pelo menos seis caracteres; cadastros públicos continuam exigindo e-mail completo e oito caracteres. Não existe senha padrão no código.
+
+Se o e-mail já existir como usuário comum, a promoção ocorre apenas se a senha configurada corresponder à senha existente. Conflitos preservam a conta e são registrados sem imprimir valores. Master já existente mantém a senha e o status; mudar variáveis não redefine sua senha nem desbloqueia contas. Depois de confirmar o acesso, remova **ambas** as variáveis iniciais da Vercel e faça outro Redeploy: a conta permanece no banco.
+
+Alternativamente, cadastre sua conta normalmente e execute no servidor, com o banco correto:
 
 ```sh
 npm run admin -- seu-email@exemplo.com
 ```
-
-Saia e entre ou recarregue a página. O comando também funciona com banco remoto configurando suas variáveis no terminal seguro.
 
 ## Gemini
 

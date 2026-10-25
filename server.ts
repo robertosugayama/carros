@@ -1,4 +1,5 @@
 import express from "express";
+import { ensureMaster } from "./masterAccount.ts";
 import { editWheelImage } from "./imageEditing.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
 import { db } from "./database.ts";
@@ -51,6 +52,18 @@ await db.exec(
     models.map((m) => "(" + m.id + ")").join(",") +
     ";",
 );
+const masterSetup = await ensureMaster(db, {
+  email: process.env.MASTER_EMAIL,
+  password: process.env.MASTER_PASSWORD,
+});
+if (masterSetup === "incomplete")
+  console.warn(
+    "Configuração inicial do master incompleta. Verifique MASTER_EMAIL e MASTER_PASSWORD (mínimo 6 caracteres).",
+  );
+if (masterSetup === "conflict")
+  console.warn(
+    "O e-mail configurado para master pertence a uma conta com outra senha. A conta foi preservada sem promoção.",
+  );
 const app = express();
 if (process.env.VERCEL) app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -118,14 +131,18 @@ app.post("/api/auth/:action", async (req, res) => {
     name = String(req.body.name || "").trim();
   if (
     !["login", "register"].includes(action) ||
-    !/^\S+@\S+\.\S+$/.test(email) ||
     email.length > 254 ||
-    p.length < 8 ||
+    !/^[^\s@]+@[^\s@]+$/.test(email) ||
+    p.length < 1 ||
     p.length > 128
   )
+    return res.status(400).json({ error: "Informe e-mail e senha válidos." });
+  if (action === "register" && (!/^\S+@\S+\.\S+$/.test(email) || p.length < 8))
     return res
       .status(400)
-      .json({ error: "Use e-mail válido e senha de 8 a 128 caracteres." });
+      .json({
+        error: "Para cadastro use e-mail válido e senha de 8 a 128 caracteres.",
+      });
   if (action === "register") {
     if (!name || name.length > 80)
       return res.status(400).json({ error: "Informe seu nome." });

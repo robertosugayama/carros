@@ -1546,11 +1546,15 @@ function App() {
                     autoComplete={
                       register ? "new-password" : "current-password"
                     }
-                    minLength={8}
+                    minLength={register ? 8 : 1}
                     maxLength={128}
                     required
                   />
-                  <small>Mínimo de 8 caracteres.</small>
+                  <small>
+                    {register
+                      ? "Mínimo de 8 caracteres."
+                      : "Use a senha definida para sua conta."}
+                  </small>
                 </label>
                 <button className="primary">
                   {register ? "Criar minha conta" : "Entrar"}

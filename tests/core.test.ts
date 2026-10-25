@@ -36,6 +36,8 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
     PORT: String(port),
     NODE_ENV: "production",
     GEMINI_API_KEY: "",
+    MASTER_EMAIL: "",
+    MASTER_PASSWORD: "",
     TURSO_DATABASE_URL: "",
     TURSO_AUTH_TOKEN: "",
   };

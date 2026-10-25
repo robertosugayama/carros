@@ -2404,3 +2404,50 @@ label > select {
 .photo-quick-actions button:disabled {
   opacity: 0.35;
 }
+
+@media (max-width: 780px) {
+  /* Mobile controls live below the photo, never over it. */
+  .mobile-photo-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-photo-controls .wheel-joystick {
+    position: relative;
+    inset: auto;
+    flex-shrink: 0;
+    z-index: auto;
+    box-shadow: none;
+  }
+  .mobile-photo-controls .joystick-size {
+    position: relative;
+    inset: auto;
+    width: 132px;
+    margin: 0;
+    padding: 4px;
+    border: 1px solid #d1dbc8;
+    border-radius: 10px;
+    background: #f7f9f3;
+  }
+  .mobile-photo-controls .joystick-size button {
+    display: grid;
+    place-items: center;
+    min-height: 36px;
+    border: 0;
+    border-radius: 7px;
+    color: #354a26;
+    touch-action: none;
+  }
+  .mobile-photo-controls .photo-quick-actions {
+    position: static;
+    z-index: auto;
+    flex-wrap: wrap;
+  }
+  .mobile-photo-controls .photo-quick-actions > div {
+    box-shadow: none;
+  }
+}

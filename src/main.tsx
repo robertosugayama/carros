@@ -60,6 +60,16 @@ type Project = {
   payload: any;
 };
 function App() {
+  const [mobileControls, setMobileControls] = useState(
+    () => window.matchMedia("(max-width: 780px)").matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 780px)");
+    const update = () => setMobileControls(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
   const [tab, setTab] = useState("studio"),
     [user, setUser] = useState<User | null>(null),
     [auth, setAuth] = useState(false),
@@ -448,19 +458,6 @@ function App() {
       "Carro removido desta montagem. Seus projetos salvos continuam na garagem.",
     );
   }
-  function swapWheels() {
-    setShowWheels(true);
-    setBefore(false);
-    const tools = document.querySelector(".config");
-    if (tools) {
-      const target = tools.querySelector(".model-current");
-      tools.scrollTop += target
-        ? target.getBoundingClientRect().top -
-          tools.getBoundingClientRect().top -
-          8
-        : -tools.scrollTop;
-    }
-  }
   async function save() {
     if (!activePhoto)
       return notify(
@@ -593,6 +590,77 @@ function App() {
       document.querySelector(".workspace")?.scrollIntoView({ block: "start" }),
     );
   }
+  const positionControls = !!carImage.src &&
+    showWheels &&
+    !before &&
+    !!activePhoto && (
+      <WheelFitControls
+        wheels={wheels}
+        selected={selected}
+        onSelect={(i) => {
+          setSelected(i);
+          setEditing(true);
+        }}
+        onMove={moveSelectedWheel}
+        onResize={resizeBoth}
+      />
+    );
+  const photoActions = !!image && (
+    <div
+      className="photo-quick-actions"
+      role="group"
+      aria-label="Ações da foto e das rodas"
+    >
+      <div>
+        <span>Rodas</span>
+        <button
+          type="button"
+          aria-label="Remover rodas"
+          title="Remover rodas da foto"
+          disabled={!showWheels}
+          onClick={() => {
+            if (
+              confirm(
+                "Remover as rodas desta foto? Elas continuarão no catálogo.",
+              )
+            )
+              setShowWheels(false);
+          }}
+        >
+          <Trash2 size={17} />
+        </button>
+      </div>
+      <div>
+        <span>Foto</span>
+        <button
+          type="button"
+          aria-label="Trocar foto"
+          title="Trocar foto do carro"
+          onClick={() => {
+            if (confirm("Trocar a foto do carro desta montagem?"))
+              gallery.current?.click();
+          }}
+        >
+          <RefreshCw size={17} />
+        </button>
+        <button
+          type="button"
+          aria-label="Remover carro"
+          title="Remover foto do carro"
+          onClick={() => {
+            if (
+              confirm(
+                "Remover a foto desta montagem? Seus projetos salvos serão mantidos.",
+              )
+            )
+              removeCar();
+          }}
+        >
+          <Trash2 size={17} />
+        </button>
+      </div>
+    </div>
+  );
   return (
     <PhotoCatalog.Provider value={photos}>
       <>
@@ -788,86 +856,11 @@ function App() {
                         ))}
                     </div>
                   </div>
-                  {!!carImage.src && showWheels && !before && !!activePhoto && (
-                    <WheelFitControls
-                      wheels={wheels}
-                      selected={selected}
-                      onSelect={(i) => {
-                        setSelected(i);
-                        setEditing(true);
-                      }}
-                      onMove={moveSelectedWheel}
-                      onResize={resizeBoth}
-                    />
-                  )}
-                  {!!image && (
-                    <div
-                      className="photo-quick-actions"
-                      role="group"
-                      aria-label="Ações da foto e das rodas"
-                    >
-                      <div>
-                        <span>Rodas</span>
-                        <button
-                          type="button"
-                          aria-label="Trocar rodas"
-                          title="Trocar rodas"
-                          onClick={() => {
-                            if (confirm("Trocar as rodas desta montagem?"))
-                              swapWheels();
-                          }}
-                        >
-                          <RefreshCw size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Remover rodas"
-                          title="Remover rodas da foto"
-                          disabled={!showWheels}
-                          onClick={() => {
-                            if (
-                              confirm(
-                                "Remover as rodas desta foto? Elas continuarão no catálogo.",
-                              )
-                            )
-                              setShowWheels(false);
-                          }}
-                        >
-                          <Trash2 size={17} />
-                        </button>
-                      </div>
-                      <div>
-                        <span>Foto</span>
-                        <button
-                          type="button"
-                          aria-label="Trocar foto"
-                          title="Trocar foto do carro"
-                          onClick={() => {
-                            if (
-                              confirm("Trocar a foto do carro desta montagem?")
-                            )
-                              gallery.current?.click();
-                          }}
-                        >
-                          <RefreshCw size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Remover carro"
-                          title="Remover foto do carro"
-                          onClick={() => {
-                            if (
-                              confirm(
-                                "Remover a foto desta montagem? Seus projetos salvos serão mantidos.",
-                              )
-                            )
-                              removeCar();
-                          }}
-                        >
-                          <Trash2 size={17} />
-                        </button>
-                      </div>
-                    </div>
+                  {!mobileControls && (
+                    <>
+                      {positionControls}
+                      {photoActions}
+                    </>
                   )}
                   {busy && (
                     <div className="scanner">
@@ -894,6 +887,16 @@ function App() {
                 className="config"
                 aria-label="Ferramentas de personalização"
               >
+                {mobileControls && (positionControls || photoActions) && (
+                  <div
+                    className="mobile-photo-controls"
+                    role="group"
+                    aria-label="Controles da foto"
+                  >
+                    {positionControls}
+                    {photoActions}
+                  </div>
+                )}
                 <div className="photo-footer">
                   <div className="canvas-toolbar">
                     <div className="zoom-controls">

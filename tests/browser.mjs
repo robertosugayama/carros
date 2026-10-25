@@ -242,8 +242,12 @@ try {
     .getByRole("button", { name: "Remover rodas", exact: true })
     .click();
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
-  page.once("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "Trocar rodas", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Trocar rodas", exact: true })
+      .count(),
+    0,
+  );
   await page
     .locator(".model")
     .filter({ hasText: "Roda particular de teste" })

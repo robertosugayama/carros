@@ -221,19 +221,24 @@ try {
     fullPhoto.width > fullFrame.width * 0.95,
     "foto usa toda a largura, sem reservar espaço para controles",
   );
-  for (const name of [
-    "Trocar rodas",
-    "Remover rodas",
-    "Trocar foto",
-    "Remover carro",
-  ])
-    assert.equal(
-      await page
-        .locator(".config")
-        .getByRole("button", { name, exact: true })
-        .count(),
-      0,
-    );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Trocar rodas", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await page.locator(".viewport").getByRole("button").count(),
+    0,
+    "foto não possui comandos sobrepostos no celular",
+  );
+  const controlsRect = await page
+    .locator(".mobile-photo-controls")
+    .boundingBox();
+  assert.ok(
+    controlsRect.y >= fullFrame.y + fullFrame.height,
+    "controles estão abaixo da foto",
+  );
   await page
     .getByRole("button", { name: "Abrir controle de posição", exact: true })
     .click();
@@ -261,6 +266,10 @@ try {
       .count(),
     0,
   );
+  assert.ok(await page.locator(".config").evaluate((el) => el.scrollTop > 0));
+  await page.locator(".config").evaluate((el) => {
+    el.scrollTop = 0;
+  });
   await page
     .getByRole("button", { name: "Mover roda para esquerda", exact: true })
     .tap();
@@ -299,7 +308,7 @@ try {
     client: el.clientHeight,
     total: el.scrollHeight,
   }));
-  assert.ok(frozenTools.scroll > 0 && frozenTools.total > frozenTools.client);
+  assert.ok(frozenTools.total > frozenTools.client);
   await page
     .locator(".editor")
     .screenshot({ path: "/tmp/carros-mobile-editor.png" });

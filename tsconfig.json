@@ -21,6 +21,7 @@
     "masterAccount.ts",
     "imageEditing.ts",
     "wheelBackground.ts",
+    "wheelExtraction.ts",
     "aiErrors.ts",
     "database.ts",
     "api",

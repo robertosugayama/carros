@@ -145,7 +145,7 @@ test("preparo corrige perspectiva com foto inteira e normaliza contorno transpar
           ],
         }),
       ),
-    /não separou a roda do fundo/,
+    /localizou uma roda inteira/,
   );
 });
 

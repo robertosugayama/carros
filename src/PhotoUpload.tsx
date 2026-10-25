@@ -19,6 +19,7 @@ export default function PhotoUpload({
   const [treating, setTreating] = useState(false);
   const [error, setError] = useState("");
   const revision = useRef(0);
+  const cameraInput = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
       revision.current++;
@@ -175,9 +176,29 @@ export default function PhotoUpload({
             </select>
           </label>
         </div>
+        <button
+          type="button"
+          className="light-button wheel-camera-button"
+          onClick={() => cameraInput.current?.click()}
+        >
+          <Camera size={19} />
+          Tirar foto da roda
+        </button>
+        <input
+          ref={cameraInput}
+          hidden
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          aria-label="Câmera da roda"
+          onChange={(event) => {
+            void select(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
         <label className="file-label">
           <Upload size={20} />{" "}
-          {original ? "Trocar foto" : "Selecionar foto da roda"}
+          {original ? "Trocar pela galeria" : "Escolher foto da galeria"}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"

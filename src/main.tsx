@@ -652,6 +652,17 @@ function App() {
         </button>
         <button
           type="button"
+          aria-label="Fotografar carro"
+          title="Tirar nova foto do carro"
+          onClick={() => {
+            if (confirm("Trocar a foto do carro por uma nova foto da câmera?"))
+              camera.current?.click();
+          }}
+        >
+          <Camera size={17} />
+        </button>
+        <button
+          type="button"
           aria-label="Remover carro"
           title="Remover foto do carro"
           onClick={() => {
@@ -1029,7 +1040,7 @@ function App() {
                   ref={camera}
                   hidden
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   capture="environment"
                   onChange={(e) => {
                     void upload(e.target.files?.[0]);

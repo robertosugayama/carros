@@ -439,7 +439,16 @@ try {
   const request = page.waitForResponse((r) =>
     r.url().endsWith("/api/gemini/edit-wheel"),
   );
-  await upload.locator("input[type=file]").setInputFiles({
+  const wheelChooser = page.waitForEvent("filechooser");
+  await upload
+    .getByRole("button", { name: "Tirar foto da roda", exact: true })
+    .tap();
+  const wheelInput = await wheelChooser;
+  assert.equal(
+    await wheelInput.element().getAttribute("capture"),
+    "environment",
+  );
+  await wheelInput.setFiles({
     name: "test.png",
     mimeType: "image/png",
     buffer: fixture,

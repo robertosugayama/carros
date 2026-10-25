@@ -144,3 +144,5 @@ No celular, a moldura acompanha a altura real da foto, sem a faixa vazia inferio
 Os ajustes móveis começam recolhidos. O botão textual Ajustar/Voltar no cabeçalho e Concluir e voltar às ferramentas no painel permitem abrir e fechar os controles, devolvendo o espaço integral às funcionalidades roláveis, sem mudar a foto.
 
 No celular, Ajustar rodas no menu e Ajustar no cabeçalho abrem diretamente setas e tamanho. O X fecha o painel inteiro; não existe segunda abertura interna. Eventos pointer têm captura opcional e click de fallback, sem executar duas vezes no mesmo toque. A seleção e o layout do computador permanecem iguais.
+
+Fotos de rodas podem vir da galeria ou do botão Tirar foto da roda, que solicita captura pela câmera traseira no navegador móvel e usa o mesmo tratamento automático. A foto do carro tem captura inicial e um ícone de câmera para substituição, com confirmação. Não há acesso automático à câmera nem exigência de chave adicional. Testes verificam o seletor de captura e o envio com fotos simuladas; hardware de câmera não é exercitado no navegador automatizado.

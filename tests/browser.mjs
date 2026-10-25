@@ -108,7 +108,7 @@ try {
   const automaticTreatment = page.waitForResponse((r) =>
     r.url().endsWith("/api/gemini/edit-wheel"),
   );
-  await upload.locator("input[type=file]").setInputFiles({
+  await upload.locator("input[type=file]:not([capture])").setInputFiles({
     name: "test-only.png",
     mimeType: "image/png",
     buffer: Buffer.from(fixture, "base64"),
@@ -179,6 +179,29 @@ try {
       buffer: Buffer.from(fixture, "base64"),
     });
   await page.locator(".wheel-overlay").first().waitFor();
+  const capturedCar = await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 320;
+    c.height = 180;
+    c.getContext("2d").fillRect(0, 0, 320, 180);
+    return c.toDataURL("image/jpeg").split(",")[1];
+  });
+  page.once("dialog", (dialog) => dialog.accept());
+  const carChooser = page.waitForEvent("filechooser");
+  await page
+    .getByRole("button", { name: "Fotografar carro", exact: true })
+    .click();
+  const carInput = await carChooser;
+  assert.equal(await carInput.element().getAttribute("capture"), "environment");
+  await carInput.setFiles({
+    name: "camera-car.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(capturedCar, "base64"),
+  });
+  await page.waitForFunction(
+    () => document.querySelector(".scene > img")?.naturalWidth === 320,
+  );
+
   assert.equal(
     await page.locator(".wheel-resize-handle,.center-cross").count(),
     0,

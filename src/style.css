@@ -2515,3 +2515,14 @@ label > select {
     font-weight: 600;
   }
 }
+
+.wheel-camera-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  font-size: 15px;
+}

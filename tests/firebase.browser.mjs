@@ -129,6 +129,18 @@ try {
     data: {},
   });
   assert.equal(blocked.status(), 403);
+  const deniedRules = await fetch("http://127.0.0.1:8089/emulator/v1/projects/demo-autotuner:securityRules", { method: "PUT", body: JSON.stringify({ rules: { files: [{ content: "rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read, write: if false; } } }" }] } }) });
+  assert.equal(deniedRules.ok, true);
+  const deniedContext = await browser.newContext();
+  const deniedPage = await deniedContext.newPage();
+  await deniedPage.goto(base);
+  await deniedPage.getByRole("button", { name: "Entrar", exact: true }).click();
+  const deniedLogin = deniedPage.getByRole("dialog");
+  await deniedLogin.getByLabel("E-mail").fill("firebase-ui@example.test");
+  await deniedLogin.getByLabel("Senha").fill("firebase-ui-test-123");
+  await deniedLogin.getByRole("button", { name: "Entrar", exact: true }).click();
+  await deniedPage.getByText(/Sua conta foi autenticada, mas o Firestore negou/).waitFor();
+  await deniedContext.close();
   assert.deepEqual(errors, []);
   console.log(
     "Firebase browser: cadastro e login reais nos emuladores Auth/Firestore, manutenção persistente, master protegido e token Firebase verificado no backend IA. Storage não foi exercitado neste teste.",

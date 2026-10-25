@@ -48,7 +48,7 @@ function message(cause: any) {
     "auth/unauthorized-domain":
       "Adicione o domínio do app aos domínios autorizados em Authentication → Settings no Firebase.",
     "permission-denied":
-      "O Firebase negou o acesso. Verifique seu perfil e publique as regras de Firestore fornecidas com o projeto.",
+      "Sua conta foi autenticada, mas o Firestore negou o acesso aos dados. No projeto carros-ed674, publique as regras do app no banco (default), em Firestore Database → Regras. Não é necessário cadastrar a conta novamente.",
     unavailable:
       "O Firestore está indisponível. Crie o banco no Firebase e verifique a conexão.",
     "not-found":
@@ -246,17 +246,17 @@ export async function firebaseApi(
         body.password,
       );
       await updateProfile(credential.user, { displayName: body.name.trim() });
-      return profile(body.name);
+      return await profile(body.name);
     }
     if (path === "auth/login") {
       await signInWithEmailAndPassword(auth, body.email.trim(), body.password);
-      return profile();
+      return await profile();
     }
     if (path === "logout") {
       await signOut(auth);
       return { ok: true };
     }
-    if (path === "me") return profile();
+    if (path === "me") return await profile();
     if (path === "catalog") {
       const values = new Map(
         rows(await getDocs(collection(firestore, "catalog"))).map((d: any) => [
@@ -269,9 +269,9 @@ export async function firebaseApi(
         enabled: values.get(m.id) !== false ? 1 : 0,
       }));
     }
-    if (path === "catalog/photos") return photos(true);
+    if (path === "catalog/photos") return await photos(true);
     if (path === "my/photos")
-      return body ? savePhoto(body, false) : photos(false);
+      return await (body ? savePhoto(body, false) : photos(false));
     const user = await profile();
     if (path === "projects" && !body) {
       return rows(
@@ -366,7 +366,7 @@ export async function firebaseApi(
       });
       return { ok: true };
     }
-    if (path === "admin/photos") return savePhoto(body, true);
+    if (path === "admin/photos") return await savePhoto(body, true);
     if (path === "admin/photo-submissions")
       return rows(
         await getDocs(

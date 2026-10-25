@@ -44,7 +44,11 @@ const rules = await initializeTestEnvironment({
   firestore: { host: "127.0.0.1", port: 8089 },
 });
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } }),
+  const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    }),
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const remoteUrl =
@@ -211,9 +215,82 @@ try {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
+  const frozenBefore = await page.locator(".viewport").boundingBox();
+  await page.locator(".config").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  const frozenAfter = await page.locator(".viewport").boundingBox();
+  assert.ok(
+    Math.abs(frozenAfter.y - frozenBefore.y) < 1,
+    "rolar ferramentas não move a foto",
+  );
+  assert.equal(
+    await page
+      .getByRole("slider", {
+        name: "Tamanho das duas rodas na foto",
+        exact: true,
+      })
+      .count(),
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Mover roda para esquerda", exact: true })
+    .tap();
+  const arrow = page.getByRole("button", {
+    name: "Mover roda para cima",
+    exact: true,
+  });
+  const beforeHold = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((el) => el.style.top);
+  const arrowBox = await arrow.boundingBox();
+  await page.mouse.move(
+    arrowBox.x + arrowBox.width / 2,
+    arrowBox.y + arrowBox.height / 2,
+  );
+  await page.mouse.down();
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  await page.mouse.up();
+  const afterHold = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((el) => el.style.top);
+  assert.ok(parseFloat(afterHold) < parseFloat(beforeHold));
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(
+    await page
+      .locator(".wheel-overlay")
+      .first()
+      .evaluate((el) => el.style.top),
+    afterHold,
+    "soltar o controle interrompe o movimento",
+  );
+  const frozenTools = await page.locator(".config").evaluate((el) => ({
+    scroll: el.scrollTop,
+    client: el.clientHeight,
+    total: el.scrollHeight,
+  }));
+  assert.ok(frozenTools.scroll > 0 && frozenTools.total > frozenTools.client);
   await page
     .locator(".editor")
     .screenshot({ path: "/tmp/carros-mobile-editor.png" });
+  await page.setViewportSize({ width: 740, height: 400 });
+  await page
+    .locator(".workspace")
+    .evaluate((el) => el.scrollIntoView({ block: "start" }));
+  const landscape = await page.locator(".config").boundingBox();
+  assert.ok(
+    landscape.height > 150,
+    "ferramentas continuam acessíveis com celular deitado",
+  );
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+
   await rules.withSecurityRulesDisabled(async (c) => {
     await updateDoc(doc(c.firestore(), "users", credentials.localId), {
       role: "master",
@@ -300,7 +377,7 @@ try {
   await deniedContext.close();
   assert.deepEqual(errors, []);
   console.log(
-    "Firebase browser: cadastro e login reais nos emuladores Auth/Firestore, manutenção persistente, master protegido e token Firebase verificado no backend IA. Storage não foi exercitado neste teste.",
+    "Firebase browser: cadastro e login reais nos emuladores Auth/Firestore, manutenção persistente, master protegido e token Firebase verificado no backend IA. Joystick testado com toque e pressão contínua; foto fixa ao rolar ferramentas. Storage real não foi exercitado neste teste.",
   );
 } finally {
   await browser.close();

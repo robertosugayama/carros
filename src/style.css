@@ -2121,3 +2121,210 @@ label > select {
     padding-top: 12px;
   }
 }
+
+/* Photo and controls are separate from the scrollable tools. */
+.workspace.has-car {
+  --stage-height: min(68dvh, 650px);
+  --photo-height: calc(var(--stage-height) - 180px);
+  align-items: start;
+}
+.workspace.has-car .editor {
+  position: sticky;
+  top: 12px;
+}
+.workspace.has-car .viewport {
+  height: var(--stage-height);
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 0 0 12px 12px;
+}
+.workspace.has-car .scene-holder {
+  min-width: 0;
+  flex-shrink: 0;
+}
+.workspace.has-car .config {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.workspace.has-car .viewport:has(.wheel-joystick[data-open="false"]) {
+  --photo-height: var(--stage-height);
+}
+.wheel-joystick {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 8;
+  width: 148px;
+  padding: 5px;
+  border: 1px solid #bdc9ae;
+  border-radius: 12px;
+  background: #fffffff2;
+  box-shadow: 0 3px 16px #17220d29;
+  touch-action: none;
+  line-height: 1;
+}
+.wheel-joystick button {
+  border: 1px solid #d0dbc5;
+  border-radius: 8px;
+  background: #f4f8ec;
+  color: #30471e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wheel-joystick button:active {
+  background: #d3ef75;
+}
+.joystick-toggle {
+  height: 30px;
+  width: 100%;
+  gap: 5px;
+  font-size: 12px;
+}
+.joystick-toggle.open {
+  position: absolute;
+  top: 77px;
+  left: 55px;
+  width: 34px;
+  height: 34px;
+  z-index: 1;
+  font-size: 0;
+  border: 0;
+}
+.joystick-toggle.open svg {
+  width: 15px;
+}
+.joystick-wheel-picker {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.joystick-wheel-picker button {
+  width: 50%;
+  height: 30px;
+  font-size: 11px;
+}
+.joystick-wheel-picker button[aria-pressed="true"] {
+  background: #d3ef75;
+  border-color: #839d4f;
+  font-weight: 700;
+}
+.joystick-pad {
+  display: grid;
+  grid-template: repeat(3, 38px) / repeat(3, 1fr);
+  gap: 2px;
+  margin: 0 8px;
+}
+.joystick-pad .up {
+  grid-area: 1/2;
+}
+.joystick-pad .left {
+  grid-area: 2/1;
+}
+.joystick-pad .right {
+  grid-area: 2/3;
+}
+.joystick-pad .down {
+  grid-area: 3/2;
+}
+.joystick-center {
+  grid-area: 2/2;
+  display: none;
+}
+.joystick-size {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  gap: 5px;
+  margin-top: 4px;
+  align-items: center;
+  text-align: center;
+}
+.joystick-size button {
+  height: 34px;
+  background: #e8f3cf;
+}
+.joystick-size output {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3f542e;
+}
+.config > .photo-footer {
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.config > .hint,
+.config > .setup-summary {
+  padding: 12px;
+  margin: 0;
+}
+@media (max-width: 780px) {
+  .workspace.has-car {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+    gap: 8px;
+    --stage-height: clamp(340px, calc(48dvh - 38px), 460px);
+    --photo-height: calc(var(--stage-height) - 180px);
+    scroll-margin-top: 0;
+  }
+  .workspace.has-car .editor {
+    position: relative;
+    top: auto;
+    width: 100%;
+  }
+  .workspace.has-car .editor-top {
+    padding: 10px 12px;
+    min-height: 38px;
+    box-sizing: border-box;
+  }
+  .workspace.has-car .config {
+    min-height: 0;
+    max-height: none;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .workspace.has-car .scene-holder {
+    margin: 0 auto;
+  }
+  .workspace.has-car .config .photo-actions {
+    padding: 8px;
+  }
+  .workspace.has-car .photo-footer .canvas-toolbar {
+    gap: 8px;
+  }
+  .workspace.has-car .config-heading {
+    position: static;
+  }
+}
+
+.wheel-joystick {
+  -webkit-touch-callout: none;
+}
+@media (max-width: 780px) and (max-height: 560px) and (orientation: landscape) {
+  .workspace.has-car {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    --stage-height: calc(100dvh - 38px);
+  }
+  .workspace.has-car .editor,
+  .workspace.has-car .config {
+    height: 100%;
+    min-height: 0;
+  }
+  .workspace.has-car .config .photo-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

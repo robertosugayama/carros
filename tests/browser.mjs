@@ -184,24 +184,51 @@ try {
     0,
   );
   assert.equal(
-    await page.getByRole("button", { name: "Aumentar as duas rodas" }).count(),
-    0,
-  );
-  const size = page.getByRole("slider", {
-    name: "Tamanho das duas rodas na foto",
-    exact: true,
-  });
-  assert.equal(await page.locator(".manual").count(), 0);
-  assert.equal(
     await page
-      .locator(".photo-footer")
       .getByRole("slider", {
         name: "Tamanho das duas rodas na foto",
         exact: true,
       })
       .count(),
+    0,
+  );
+  assert.equal(await page.locator(".manual").count(), 0);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+      .count(),
     1,
   );
+  const positions = await page.locator(".wheel-overlay").evaluateAll((els) =>
+    els.map((e) => ({
+      left: e.style.left,
+      top: e.style.top,
+      width: e.style.width,
+    })),
+  );
+  await page
+    .getByRole("button", { name: "Posicionar roda direita", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Mover roda para direita", exact: true })
+    .click();
+  const moved = await page.locator(".wheel-overlay").evaluateAll((els) =>
+    els.map((e) => ({
+      left: e.style.left,
+      top: e.style.top,
+      width: e.style.width,
+    })),
+  );
+  assert.equal(moved[0].left, positions[0].left);
+  assert.ok(parseFloat(moved[1].left) > parseFloat(positions[1].left));
+  await page
+    .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+    .click();
+  const sized = await page
+    .locator(".wheel-overlay")
+    .evaluateAll((els) => els.map((e) => e.style.width));
+  assert.equal(sized[0], sized[1]);
+  assert.ok(parseFloat(sized[0]) > parseFloat(positions[0].width));
   await page
     .getByRole("button", { name: "Remover rodas", exact: true })
     .click();
@@ -211,7 +238,9 @@ try {
     .locator(".model")
     .filter({ hasText: "Roda particular de teste" })
     .click();
-  await size.fill("22");
+  await page
+    .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+    .click();
   let left = await page.locator(".wheel-overlay").first().boundingBox(),
     right = await page.locator(".wheel-overlay").last().boundingBox();
   assert.ok(Math.abs(left.width - right.width) < 1);
@@ -321,8 +350,8 @@ try {
   );
   await page.getByRole("radio", { name: "Baixo" }).check();
   await page
-    .getByRole("slider", { name: "Tamanho do aro", exact: true })
-    .fill("20");
+    .getByRole("combobox", { name: "Tamanho do aro", exact: true })
+    .selectOption("20");
   await page.waitForFunction(() =>
     [...document.querySelectorAll(".wheel-overlay svg")].every(
       (el) =>
@@ -367,7 +396,7 @@ try {
   assert.ok(await page.getByRole("radio", { name: "Baixo" }).isChecked());
   assert.equal(
     await page
-      .getByRole("slider", { name: "Tamanho do aro", exact: true })
+      .getByRole("combobox", { name: "Tamanho do aro", exact: true })
       .inputValue(),
     "20",
   );
@@ -405,7 +434,7 @@ try {
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "Browser: sem alça/marcadores; tamanho único na barra; upload de usuário sem fonte obrigatória; IA indisponível informada; publicação master; pinça azul com mudança de pixels; disco liso nas duas rodas; histórico e PNG preservam opções.",
+    "Browser: sem alça/marcadores; joystick com seleção individual e tamanho comum nos botões +/−; upload de usuário sem fonte obrigatória; IA indisponível informada; publicação master; pinça azul com mudança de pixels; disco liso nas duas rodas; histórico e PNG preservam opções.",
   );
 } finally {
   await browser.close();

@@ -118,6 +118,14 @@ function App() {
     ),
   ];
   const carImage = useSavedImage(image, carLoadAttempt);
+  useEffect(() => {
+    if (carImage.src && window.innerWidth <= 780)
+      requestAnimationFrame(() =>
+        document
+          .querySelector(".workspace")
+          ?.scrollIntoView({ block: "start" }),
+      );
+  }, [carImage.src]);
   const modelName = (id: number | string) =>
     models.find((m) => m.id === id)?.name || "Roda enviada";
   const activePhoto =
@@ -128,10 +136,7 @@ function App() {
   function chooseModel(id: number | string) {
     setShowWheels(true);
     setBefore(false);
-    if (window.innerWidth < 780)
-      document
-        .querySelector(".editor")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
     setModel(id);
     setBrakesDirty(false);
     setSavedPhoto(undefined);
@@ -265,7 +270,7 @@ function App() {
       setZoom(1);
       setEditing(true);
       notify(
-        "Foto carregada. Arraste as rodas para posicionar e use a barra abaixo da foto para ajustar o tamanho.",
+        "Foto carregada. Use as setas na foto para posicionar cada roda e os botões + e − para ajustar as duas juntas.",
       );
     } catch {
       notify("Não foi possível abrir a foto.");
@@ -293,17 +298,28 @@ function App() {
     );
     setSize(next);
   }
-  function setWheelDiameter(index: number, diameter: number) {
-    setSelected(index);
+  function moveSelectedWheel(dx: number, dy: number) {
     setEditing(true);
-    setWheels((old) => equalizeWheels(old, diameter));
+    const rect = scene.current?.getBoundingClientRect();
+    const xStep = 1.5 / Math.max(100, rect?.width || 500),
+      yStep = 1.5 / Math.max(100, rect?.height || 300);
+    setWheels((old) =>
+      old.map((w, i) =>
+        i === selected
+          ? {
+              ...w,
+              x: Math.max(0, Math.min(1, w.x + dx * xStep)),
+              y: Math.max(0, Math.min(1, w.y + dy * yStep)),
+            }
+          : w,
+      ),
+    );
   }
-  function updateWheel(p: Partial<Placement>) {
-    if (p.diameter !== undefined) {
-      setWheelDiameter(selected, p.diameter);
-      return;
-    }
-    setWheels((w) => w.map((v, i) => (i === selected ? { ...v, ...p } : v)));
+  function resizeBoth(delta: number) {
+    setEditing(true);
+    setWheels((old) =>
+      equalizeWheels(old, clampDiameter(old[0].diameter + delta * 0.002)),
+    );
   }
   function pointer(e: React.PointerEvent) {
     if (!drag.current || !scene.current) return;
@@ -435,9 +451,15 @@ function App() {
   function swapWheels() {
     setShowWheels(true);
     setBefore(false);
-    document
-      .querySelector(".config")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const tools = document.querySelector(".config");
+    if (tools) {
+      const target = tools.querySelector(".model-current");
+      tools.scrollTop += target
+        ? target.getBoundingClientRect().top -
+          tools.getBoundingClientRect().top -
+          8
+        : -tools.scrollTop;
+    }
   }
   async function save() {
     if (!activePhoto)
@@ -567,7 +589,9 @@ function App() {
     setProjectName(p.name);
     setZoom(1);
     setTab("studio");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() =>
+      document.querySelector(".workspace")?.scrollIntoView({ block: "start" }),
+    );
   }
   return (
     <PhotoCatalog.Provider value={photos}>
@@ -647,7 +671,16 @@ function App() {
                 <b>01 / CRIE SEU SETUP</b>
               </span>
             </section>
-            <div className="workspace">
+            <div
+              className={`workspace ${carImage.src ? "has-car" : ""}`}
+              style={
+                {
+                  "--car-ratio": carImage.width
+                    ? carImage.width / carImage.height
+                    : 16 / 9,
+                } as React.CSSProperties
+              }
+            >
               <section className="editor">
                 <div className="editor-top">
                   <span>
@@ -667,7 +700,12 @@ function App() {
                 <div className="viewport">
                   <div
                     className="scene-holder"
-                    style={{ width: `${zoom * 100}%` }}
+                    style={{
+                      width:
+                        carImage.src && zoom === 1
+                          ? "min(100%, calc(var(--photo-height, var(--stage-height)) * var(--car-ratio)))"
+                          : `${zoom * 100}%`,
+                    }}
                   >
                     {!image && (
                       <div className="real-photo-empty">
@@ -750,6 +788,18 @@ function App() {
                         ))}
                     </div>
                   </div>
+                  {!!carImage.src && showWheels && !before && !!activePhoto && (
+                    <WheelFitControls
+                      wheels={wheels}
+                      selected={selected}
+                      onSelect={(i) => {
+                        setSelected(i);
+                        setEditing(true);
+                      }}
+                      onMove={moveSelectedWheel}
+                      onResize={resizeBoth}
+                    />
+                  )}
                   {busy && (
                     <div className="scanner">
                       <div className="scan-line" />
@@ -770,13 +820,12 @@ function App() {
                     </div>
                   )}
                 </div>
+              </section>
+              <aside
+                className="config"
+                aria-label="Ferramentas de personalização"
+              >
                 <div className="photo-footer">
-                  {!!carImage.src && showWheels && !before && !!activePhoto && (
-                    <WheelFitControls
-                      wheels={wheels}
-                      onChange={setWheelDiameter}
-                    />
-                  )}
                   <div className="canvas-toolbar">
                     <div className="zoom-controls">
                       <button
@@ -912,8 +961,7 @@ function App() {
                     <Check size={16} /> Ajuste em tempo real
                   </span>
                 </div>
-              </section>
-              <aside className="config">
+
                 <div className="config-heading">
                   <div>
                     <SlidersHorizontal size={18} />
@@ -1119,19 +1167,21 @@ function App() {
                     </h3>
                     <strong>{size}”</strong>
                   </div>
-                  <input
-                    aria-label="Tamanho do aro"
-                    type="range"
-                    min="14"
-                    max="22"
-                    value={size}
-                    disabled={!activePhoto}
-                    onChange={(e) => changeRimSize(Number(e.target.value))}
-                  />
-                  <div className="range-labels">
-                    <span>14”</span>
-                    <span>22”</span>
-                  </div>
+                  <label>
+                    Aro da roda
+                    <select
+                      aria-label="Tamanho do aro"
+                      value={size}
+                      disabled={!activePhoto}
+                      onChange={(e) => changeRimSize(Number(e.target.value))}
+                    >
+                      {Array.from({ length: 9 }, (_, i) => (
+                        <option key={i} value={i + 14}>
+                          {i + 14} polegadas
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <fieldset className="tyre-options">
                     <legend>Perfil do pneu</legend>
                     <div>

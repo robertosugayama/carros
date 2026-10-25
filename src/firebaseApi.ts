@@ -294,6 +294,30 @@ export async function firebaseApi(
     if (path === "my/photos")
       return await (body ? savePhoto(body, false) : photos(false));
     const user = await profile();
+    if (path.startsWith("my/photos/") && method === "DELETE") {
+      const reference = doc(firestore, "wheelPhotos", path.split("/")[2]);
+      const found = await getDoc(reference);
+      if (!found.exists()) return { ok: true };
+      const data = found.data();
+      if (user.role !== "master" && (data.owner_id !== user.id || data.public))
+        throw Error("Você não pode excluir esta roda do catálogo.");
+      await deleteDoc(reference);
+      await Promise.allSettled(
+        [data.image, data.solidImage]
+          .filter(Boolean)
+          .map(async (source: string) => {
+            const url = new URL(source);
+            if (url.hostname !== "firebasestorage.googleapis.com") return;
+            const name = decodeURIComponent(url.pathname.split("/o/")[1] || "");
+            if (
+              name.startsWith(`users/${user.id}/wheelPhotos/`) ||
+              (user.role === "master" && name.startsWith("catalog/"))
+            )
+              await deleteObject(ref(storage, name));
+          }),
+      );
+      return { ok: true };
+    }
     if (path === "projects" && !body) {
       return rows(
         await getDocs(collection(firestore, "users", user.id, "projects")),

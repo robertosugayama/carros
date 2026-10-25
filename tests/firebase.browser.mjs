@@ -67,6 +67,7 @@ try {
   const rim = await readFile(
     new URL("../public/wheels/silver-split-rim.png", import.meta.url),
   );
+  let savedCarUrl = "";
   let reads = 0,
     direct = 0;
   await page.route("https://firebasestorage.googleapis.com/**", (route) => {
@@ -75,7 +76,9 @@ try {
   });
   await page.route("**/api/storage/image", (route) => {
     reads++;
-    assert.equal(route.request().postDataJSON().image, remoteUrl);
+    assert.ok(
+      [remoteUrl, savedCarUrl].includes(route.request().postDataJSON().image),
+    );
     return route.fulfill({ status: 200, contentType: "image/png", body: rim });
   });
   await page.goto(base);
@@ -121,6 +124,51 @@ try {
     await page.getByRole("button", { name: "Admin", exact: true }).count(),
     0,
   );
+  savedCarUrl =
+    "https://firebasestorage.googleapis.com/v0/b/carros-ed674.firebasestorage.app/o/" +
+    encodeURIComponent(
+      `users/${credentials.localId}/projects/saved-remote/car.webp`,
+    ) +
+    "?alt=media&token=test-car";
+  await rules.withSecurityRulesDisabled(async (c) => {
+    await setDoc(
+      doc(
+        c.firestore(),
+        "users",
+        credentials.localId,
+        "projects",
+        "saved-remote",
+      ),
+      {
+        name: "Carro salvo remoto",
+        createdAt: new Date(),
+        files: [],
+        payload: {
+          image: savedCarUrl,
+          model: "remote-wheel",
+          finish: 1,
+          size: 18,
+          caliper: 4,
+          discStyle: "solid",
+          tyreProfile: "medium",
+          wheels: [
+            { x: 0.25, y: 0.6, diameter: 0.2 },
+            { x: 0.75, y: 0.6, diameter: 0.2 },
+          ],
+          photo: {
+            id: "remote-wheel",
+            model: "remote-wheel",
+            finish: 1,
+            size: 18,
+            kind: "rim",
+            image: remoteUrl,
+            source: "",
+            credit: "Teste",
+          },
+        },
+      },
+    );
+  });
   await page
     .getByRole("button", { name: "Minha garagem", exact: true })
     .click();
@@ -139,6 +187,33 @@ try {
   await page
     .getByRole("heading", { name: "Óleo · Carro teste Firebase" })
     .waitFor();
+  await page.locator(".project-thumb img").waitFor();
+  await page
+    .getByRole("button", { name: "Abrir projeto", exact: true })
+    .click();
+  await page.locator('.scene > img[src^="data:"]').waitFor();
+  await page
+    .locator('.wheel-overlay svg[data-load-state="ready"]')
+    .first()
+    .waitFor();
+  const dimensions = await page.locator(".scene").evaluate((el) => ({
+    width: el.clientWidth,
+    height: el.clientHeight,
+    image: el.querySelector("img").naturalHeight,
+  }));
+  assert.ok(
+    dimensions.image > 0 && dimensions.height > 100,
+    "foto completa antes de posicionar as rodas",
+  );
+  assert.equal(direct, 0);
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page
+    .locator(".editor")
+    .screenshot({ path: "/tmp/carros-mobile-editor.png" });
   await rules.withSecurityRulesDisabled(async (c) => {
     await updateDoc(doc(c.firestore(), "users", credentials.localId), {
       role: "master",

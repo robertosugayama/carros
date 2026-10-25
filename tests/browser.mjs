@@ -191,6 +191,26 @@ try {
     name: "Tamanho das duas rodas na foto",
     exact: true,
   });
+  assert.equal(await page.locator(".manual").count(), 0);
+  assert.equal(
+    await page
+      .locator(".photo-footer")
+      .getByRole("slider", {
+        name: "Tamanho das duas rodas na foto",
+        exact: true,
+      })
+      .count(),
+    1,
+  );
+  await page
+    .getByRole("button", { name: "Remover rodas", exact: true })
+    .click();
+  assert.equal(await page.locator(".wheel-overlay").count(), 0);
+  await page.getByRole("button", { name: "Trocar rodas", exact: true }).click();
+  await page
+    .locator(".model")
+    .filter({ hasText: "Roda particular de teste" })
+    .click();
   await size.fill("22");
   let left = await page.locator(".wheel-overlay").first().boundingBox(),
     right = await page.locator(".wheel-overlay").last().boundingBox();
@@ -356,6 +376,33 @@ try {
     .getByRole("button", { name: "Exportar imagem", exact: true })
     .click();
   assert.ok(statSync(await (await download).path()).size > 1000);
+  await page
+    .locator(".model")
+    .filter({ hasText: "Roda particular de teste" })
+    .click();
+  page.once("dialog", (dialog) => dialog.accept());
+  const deletion = page.waitForResponse(
+    (r) =>
+      r.url().includes("/api/my/photos/") && r.request().method() === "DELETE",
+  );
+  await page
+    .getByRole("button", { name: "Excluir roda do catálogo", exact: true })
+    .click();
+  assert.equal((await deletion).status(), 200);
+  assert.equal(
+    await page
+      .locator(".model")
+      .filter({ hasText: "Roda particular de teste" })
+      .count(),
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Remover carro", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "A sua foto é o ponto de partida." })
+    .waitFor();
+  assert.equal(await page.locator(".wheel-overlay").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
     "Browser: sem alça/marcadores; tamanho único na barra; upload de usuário sem fonte obrigatória; IA indisponível informada; publicação master; pinça azul com mudança de pixels; disco liso nas duas rodas; histórico e PNG preservam opções.",

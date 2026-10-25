@@ -353,6 +353,20 @@ app.get("/api/my/photos", async (_req, res) =>
   ),
 );
 app.post("/api/my/photos", async (req, res) => savePhoto(req, res, false));
+app.delete("/api/my/photos/:id", async (req, res) => {
+  const found = await db
+    .prepare("SELECT * FROM wheel_photos WHERE id=?")
+    .get(req.params.id);
+  if (!found) return res.status(404).json({ error: "Roda não encontrada." });
+  if (
+    res.locals.user.role !== "master" &&
+    (found.owner_id !== res.locals.user.id || found.public)
+  )
+    return res.status(403).json({ error: "Você não pode excluir esta roda." });
+  await db.prepare("DELETE FROM wheel_photos WHERE id=?").run(req.params.id);
+  res.json({ ok: true });
+});
+
 const imageEditLimits = new Map<number, number>();
 app.post("/api/gemini/edit-wheel", async (req, res) => {
   const { image, action, kind = "assembly", caliper, discStyle } = req.body;

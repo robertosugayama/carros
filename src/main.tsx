@@ -25,8 +25,12 @@ import {
   Search,
   Sparkles,
   LoaderCircle,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import Wheel from "./Wheel";
+import ProjectPreview from "./ProjectPreview";
+import { useSavedImage } from "./useSavedImage";
 import WheelFitControls from "./WheelFitControls";
 import { clampDiameter, equalizeWheels } from "./wheelSizing";
 import {
@@ -62,6 +66,7 @@ function App() {
     [register, setRegister] = useState(false),
     [message, setMessage] = useState(""),
     [image, setImage] = useState(""),
+    [carLoadAttempt, setCarLoadAttempt] = useState(0),
     [model, setModel] = useState<number | string>(18),
     [finish, setFinish] = useState(1),
     [caliper, setCaliper] = useState(4),
@@ -72,6 +77,7 @@ function App() {
     [wheels, setWheels] = useState<Placement[]>(defaultWheels),
     [selected, setSelected] = useState(0),
     [before, setBefore] = useState(false),
+    [showWheels, setShowWheels] = useState(true),
     [editing, setEditing] = useState(false),
     [busy, setBusy] = useState(false),
     [scanner, setScanner] = useState(0),
@@ -111,6 +117,7 @@ function App() {
       ).values(),
     ),
   ];
+  const carImage = useSavedImage(image, carLoadAttempt);
   const modelName = (id: number | string) =>
     models.find((m) => m.id === id)?.name || "Roda enviada";
   const activePhoto =
@@ -119,6 +126,12 @@ function App() {
       : findPhoto(photos, model, finish, size) ||
         photos.find((p) => p.model === model && p.finish === finish);
   function chooseModel(id: number | string) {
+    setShowWheels(true);
+    setBefore(false);
+    if (window.innerWidth < 780)
+      document
+        .querySelector(".editor")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     setModel(id);
     setBrakesDirty(false);
     setSavedPhoto(undefined);
@@ -245,11 +258,14 @@ function App() {
         photoData = c.toDataURL("image/jpeg", 0.65);
       if (photoData.length > 2400000) throw Error("Imagem muito grande");
       setImage(photoData);
+      setCarLoadAttempt((n) => n + 1);
+      setShowWheels(true);
+      setBefore(false);
       setWheels(defaultWheels.map((w) => ({ ...w })));
       setZoom(1);
       setEditing(true);
       notify(
-        "Foto carregada. Arraste os centros e ajuste o diâmetro de cada roda.",
+        "Foto carregada. Arraste as rodas para posicionar e use a barra abaixo da foto para ajustar o tamanho.",
       );
     } catch {
       notify("Não foi possível abrir a foto.");
@@ -323,6 +339,7 @@ function App() {
       user?.role === "master" ? "admin/photos" : "my/photos",
       p,
     );
+    setShowWheels(true);
     setPhotos((old) => [
       result,
       ...old.filter(
@@ -376,6 +393,52 @@ function App() {
       setBrakeBusy(false);
     }
   }
+  const canDeleteWheel =
+    !!activePhoto &&
+    !(typeof activePhoto.id === "number" && activePhoto.id < 0) &&
+    !!user &&
+    (user.role === "master" ||
+      (activePhoto.owner_id === user.id && !activePhoto.public));
+  async function deleteWheel() {
+    if (!activePhoto || !canDeleteWheel) return;
+    if (
+      !confirm(
+        "Excluir esta roda do catálogo? Os projetos já salvos serão mantidos.",
+      )
+    )
+      return;
+    try {
+      await api("my/photos/" + activePhoto.id, undefined, "DELETE");
+      setPhotos((old) => old.filter((p) => p.id !== activePhoto.id));
+      const next = photos.find((p) => p.id !== activePhoto.id);
+      if (next) {
+        setModel(next.model);
+        setFinish(next.finish);
+        setSize(next.size);
+      }
+      setSavedPhoto(undefined);
+      setShowWheels(false);
+      notify("Roda excluída do catálogo.");
+    } catch (cause: any) {
+      notify(cause.message);
+    }
+  }
+  function removeCar() {
+    setImage("");
+    setZoom(1);
+    setWheels(defaultWheels.map((w) => ({ ...w })));
+    setBefore(false);
+    notify(
+      "Carro removido desta montagem. Seus projetos salvos continuam na garagem.",
+    );
+  }
+  function swapWheels() {
+    setShowWheels(true);
+    setBefore(false);
+    document
+      .querySelector(".config")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   async function save() {
     if (!activePhoto)
       return notify(
@@ -394,7 +457,8 @@ function App() {
       await api("projects", {
         name: projectName,
         payload: {
-          image,
+          image: await inlinePhoto(image),
+          showWheels,
           model,
           finish,
           caliper,
@@ -430,7 +494,7 @@ function App() {
       c.height = img.naturalHeight;
       const ctx = c.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
-      if (!before && activePhoto) {
+      if (!before && showWheels && activePhoto) {
         const svgs = scene.current.querySelectorAll(".wheel-overlay > svg");
         for (let i = 0; i < 2; i++) {
           const svg = svgs[i].cloneNode(true) as SVGSVGElement;
@@ -486,6 +550,10 @@ function App() {
     const d = p.payload;
     setSavedPhoto(d.photo);
     setImage(d.image);
+    setCarLoadAttempt((n) => n + 1);
+    setShowWheels(d.showWheels !== false);
+    setBefore(false);
+    setEditing(true);
     setModel(d.model);
     setFinish(d.finish);
     setCaliper(d.caliper);
@@ -499,6 +567,7 @@ function App() {
     setProjectName(p.name);
     setZoom(1);
     setTab("studio");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   return (
     <PhotoCatalog.Provider value={photos}>
@@ -618,15 +687,31 @@ function App() {
                         <span>FOTO DO SEU CARRO · CATÁLOGO VISUAL</span>
                       </div>
                     )}
-                    <div ref={scene} className="scene" hidden={!image}>
+                    <div
+                      ref={scene}
+                      className="scene"
+                      hidden={!image}
+                      style={{
+                        aspectRatio: carImage.width
+                          ? carImage.width / carImage.height
+                          : 16 / 9,
+                      }}
+                    >
                       <img
                         ref={photo}
                         crossOrigin="anonymous"
-                        src={image || undefined}
+                        src={carImage.src || undefined}
+                        style={{ display: carImage.src ? "block" : "none" }}
                         alt="Sua foto real de perfil do veículo"
                         draggable={false}
                       />
-                      {!!image &&
+                      {!carImage.src && !!image && (
+                        <div className="car-image-status" role="status">
+                          {carImage.error || "Carregando foto do carro…"}
+                        </div>
+                      )}
+                      {!!carImage.src &&
+                        showWheels &&
                         !before &&
                         !!activePhoto &&
                         wheels.map((w, i) => (
@@ -685,81 +770,128 @@ function App() {
                     </div>
                   )}
                 </div>
-                <div className="canvas-toolbar">
-                  <div className="zoom-controls">
+                <div className="photo-footer">
+                  {!!carImage.src && showWheels && !before && !!activePhoto && (
+                    <WheelFitControls
+                      wheels={wheels}
+                      onChange={setWheelDiameter}
+                    />
+                  )}
+                  <div className="canvas-toolbar">
+                    <div className="zoom-controls">
+                      <button
+                        onClick={() => setZoom(Math.max(1, zoom - 0.25))}
+                        aria-label="Diminuir zoom"
+                      >
+                        <ZoomOut size={17} />
+                      </button>
+                      <span>{Math.round(zoom * 100)}%</span>
+                      <button
+                        onClick={() => setZoom(Math.min(3, zoom + 0.25))}
+                        aria-label="Aumentar zoom"
+                      >
+                        <ZoomIn size={17} />
+                      </button>
+                    </div>
                     <button
-                      onClick={() => setZoom(Math.max(1, zoom - 0.25))}
-                      aria-label="Diminuir zoom"
+                      className={editing ? "tool selected-tool" : "tool"}
+                      onClick={() => setEditing(!editing)}
                     >
-                      <ZoomOut size={17} />
+                      <Move size={15} />
+                      Ajustar rodas
                     </button>
-                    <span>{Math.round(zoom * 100)}%</span>
+                    <button className="tool" onClick={() => setBefore(!before)}>
+                      <Eye size={16} />
+                      {before ? "Ver depois" : "Ver original"}
+                    </button>
+                    {!!image && (
+                      <button
+                        type="button"
+                        className="tool"
+                        disabled={busy}
+                        onClick={detect}
+                      >
+                        <Sparkles size={16} />
+                        {busy ? "Analisando…" : "Detectar com IA"}
+                      </button>
+                    )}
+                    <span className="photo-label">
+                      {!image ? "CARREGUE SUA FOTO" : "FOTOGRAFIA REAL"}
+                    </span>
+                  </div>
+                  <div className="photo-actions">
                     <button
-                      onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                      aria-label="Aumentar zoom"
+                      type="button"
+                      onClick={swapWheels}
+                      disabled={!image}
                     >
-                      <ZoomIn size={17} />
+                      <RefreshCw size={17} />
+                      Trocar rodas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowWheels(false)}
+                      disabled={!image || !showWheels}
+                    >
+                      <X size={17} />
+                      Remover rodas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => gallery.current?.click()}
+                    >
+                      <ImagePlus size={17} />
+                      {image ? "Trocar foto" : "Adicionar carro"}
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={removeCar}
+                      disabled={!image}
+                    >
+                      <Trash2 size={17} />
+                      Remover carro
                     </button>
                   </div>
-                  <button
-                    className={editing ? "tool selected-tool" : "tool"}
-                    onClick={() => setEditing(!editing)}
-                  >
-                    <Move size={15} />
-                    Ajustar rodas
-                  </button>
-                  <button className="tool" onClick={() => setBefore(!before)}>
-                    <Eye size={16} />
-                    {before ? "Ver depois" : "Ver original"}
-                  </button>
-                  <span className="photo-label">
-                    {!image ? "CARREGUE SUA FOTO" : "FOTOGRAFIA REAL"}
-                  </span>
                 </div>
-                {!!image && !before && !!activePhoto && (
-                  <WheelFitControls
-                    wheels={wheels}
-                    onChange={setWheelDiameter}
-                  />
+                {!image && (
+                  <div className="upload-row">
+                    <button
+                      className="dark-button"
+                      onClick={() => camera.current?.click()}
+                    >
+                      <Camera size={17} />
+                      Tirar foto
+                    </button>
+                    <button
+                      className="light-button"
+                      onClick={() => gallery.current?.click()}
+                    >
+                      <ImagePlus size={17} />
+                      Escolher da galeria
+                    </button>
+                  </div>
                 )}
-                <div className="upload-row">
-                  <button
-                    className="dark-button"
-                    onClick={() => camera.current?.click()}
-                  >
-                    <Camera size={17} />
-                    Tirar foto
-                  </button>
-                  <button
-                    className="light-button"
-                    onClick={() => gallery.current?.click()}
-                  >
-                    <ImagePlus size={17} />
-                    Escolher da galeria
-                  </button>
-                  <button
-                    className="ai-button"
-                    onClick={detect}
-                    disabled={busy}
-                  >
-                    <Sparkles size={16} />
-                    {busy ? "Analisando…" : "Detectar com IA"}
-                  </button>
-                </div>
                 <input
                   ref={camera}
                   hidden
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  onChange={(e) => upload(e.target.files?.[0])}
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
                 />
                 <input
                   ref={gallery}
                   hidden
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => upload(e.target.files?.[0])}
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
                 />
                 <div className="hint">
                   <ScanLine size={17} />
@@ -769,47 +901,6 @@ function App() {
                     disponível a qualquer momento.
                   </p>
                 </div>
-                {editing && (
-                  <section className="manual">
-                    <div>
-                      <b>Ajuste de precisão</b>
-                      <span>Arraste a roda na foto ou use os controles.</span>
-                    </div>
-                    <div className="segmented">
-                      {["Roda esquerda", "Roda direita"].map((s, i) => (
-                        <button
-                          className={selected === i ? "active" : ""}
-                          onClick={() => setSelected(i)}
-                          key={s}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                    {(["x", "y"] as const).map((k, i) => (
-                      <label key={k}>
-                        {
-                          [
-                            "Centro horizontal",
-                            "Centro vertical",
-                            "Diâmetro do conjunto",
-                          ][i]
-                        }{" "}
-                        <b>{Math.round(wheels[selected][k] * 100)}%</b>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          step=".1"
-                          value={wheels[selected][k] * 100}
-                          onChange={(e) =>
-                            updateWheel({ [k]: Number(e.target.value) / 100 })
-                          }
-                        />
-                      </label>
-                    ))}
-                  </section>
-                )}
                 <div className="setup-summary">
                   <span>
                     <Check size={16} /> Círculos perfeitos
@@ -925,6 +1016,16 @@ function App() {
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
+                  {canDeleteWheel && (
+                    <button
+                      type="button"
+                      className="delete-catalog-wheel"
+                      onClick={deleteWheel}
+                    >
+                      <Trash2 size={16} />
+                      Excluir roda do catálogo
+                    </button>
+                  )}
                   <div className="model-grid">
                     {models
                       .filter(
@@ -1213,24 +1314,11 @@ function App() {
                   {projects.length ? (
                     projects.map((p) => (
                       <article key={p.id} className="project">
-                        <div
-                          className="project-thumb"
-                          onClick={() => openProject(p)}
-                        >
-                          <img src={p.payload.image} alt={p.name} />
-                          {p.payload.wheels.map((w: Placement, i: number) => (
-                            <div
-                              key={i}
-                              style={{
-                                left: `${w.x * 100}%`,
-                                top: `${w.y * 100}%`,
-                                width: `${w.diameter * 100}%`,
-                              }}
-                            >
-                              <Wheel {...p.payload} mounted />
-                            </div>
-                          ))}
-                        </div>
+                        <ProjectPreview
+                          payload={p.payload}
+                          name={p.name}
+                          onOpen={() => openProject(p)}
+                        />
                         <h3>{p.name}</h3>
                         <p>
                           {modelName(p.payload.model)} · {p.payload.size}”

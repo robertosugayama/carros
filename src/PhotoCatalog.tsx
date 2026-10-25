@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 export type WheelPhoto = {
   name?: string;
+  owner_id?: string | number;
+  public?: boolean;
   solidImage?: string;
   caliperHue?: number;
   discStyle?: "drilled" | "solid";

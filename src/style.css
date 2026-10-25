@@ -1979,3 +1979,145 @@ label > select {
   margin-top: 5px;
   font-size: 13px;
 }
+
+/* Phone-first photo controls stay attached to the image. */
+.photo-footer {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+}
+.photo-footer .wheel-fit-controls {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+  padding: 12px 16px 4px;
+}
+.photo-footer .wheel-fit-controls h3 {
+  font-size: 15px;
+  margin-bottom: 0;
+}
+.photo-footer .wheel-fit-controls p {
+  display: none;
+}
+.photo-footer .wheel-fit-control label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+.photo-footer .wheel-fit-control input {
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+}
+.photo-footer .canvas-toolbar {
+  border: 0;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.photo-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px 12px;
+}
+.photo-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #dce3d5;
+  border-radius: 9px;
+  background: #f6f9f2;
+  font-size: 13px;
+  color: #35452c;
+}
+.photo-actions .danger,
+.delete-catalog-wheel {
+  color: #9e382e;
+}
+.photo-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.delete-catalog-wheel {
+  border: 1px solid #ebd6d0;
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0;
+  font-size: 14px;
+  background: #fff8f6;
+}
+.car-image-status {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  inset: 0;
+  line-height: 1.6;
+  padding: 20px;
+  text-align: center;
+  color: #35452c;
+}
+.project-thumb {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: #e7ede1;
+}
+.project-thumb > span {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 130px;
+  font-size: 14px;
+}
+.viewport {
+  max-height: none;
+}
+.editor,
+.config {
+  scroll-margin-top: 16px;
+}
+@media (max-width: 780px) {
+  .photo-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .photo-actions button {
+    font-size: 14px;
+    min-height: 46px;
+  }
+  .photo-footer .canvas-toolbar {
+    justify-content: space-between;
+  }
+  .photo-footer .photo-label {
+    display: none;
+  }
+  .photo-footer .wheel-fit-controls {
+    padding: 10px 12px 0;
+  }
+  .upload-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .upload-row button {
+    min-height: 44px;
+    flex: 1;
+    font-size: 13px;
+  }
+  .intro {
+    padding-top: 12px;
+  }
+}

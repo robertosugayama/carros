@@ -186,6 +186,34 @@ test("contas, projetos isolados, manutenção e permissões", async () => {
       credit: "",
     };
     const own = await req("my/photos", ownPhoto, b.cookie);
+    const disposable = await req(
+      "my/photos",
+      { ...ownPhoto, name: "Roda para excluir" },
+      a.cookie,
+    );
+    assert.equal(
+      (
+        await req(
+          "my/photos/" + disposable.data.id,
+          undefined,
+          b.cookie,
+          "DELETE",
+        )
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await req(
+          "my/photos/" + disposable.data.id,
+          undefined,
+          a.cookie,
+          "DELETE",
+        )
+      ).status,
+      200,
+    );
+
     assert.equal(own.status, 201);
     assert.ok(own.data.model >= 1000);
     assert.equal((await req("my/photos", undefined, b.cookie)).data.length, 1);

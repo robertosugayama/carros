@@ -142,3 +142,5 @@ No celular (até 780 px), os comandos ficam em uma faixa no painel rolável abai
 No celular, a moldura acompanha a altura real da foto, sem a faixa vazia inferior. Tamanho e posicionamento ficam fixos imediatamente abaixo da imagem, fora da área rolável, com botão para ocultar/mostrar todos os ajustes sem mudar a escala da foto. As ações de remover/trocar foto continuam no painel rolável. O layout do computador não muda.
 
 Os ajustes móveis começam recolhidos. O botão textual Ajustar/Voltar no cabeçalho e Concluir e voltar às ferramentas no painel permitem abrir e fechar os controles, devolvendo o espaço integral às funcionalidades roláveis, sem mudar a foto.
+
+No celular, Ajustar rodas no menu e Ajustar no cabeçalho abrem diretamente setas e tamanho. O X fecha o painel inteiro; não existe segunda abertura interna. Eventos pointer têm captura opcional e click de fallback, sem executar duas vezes no mesmo toque. A seleção e o layout do computador permanecem iguais.

@@ -606,6 +606,10 @@ function App() {
         }}
         onMove={moveSelectedWheel}
         onResize={resizeBoth}
+        initialOpen={mobileControls}
+        onClose={
+          mobileControls ? () => setMobileAdjustmentsVisible(false) : undefined
+        }
       />
     );
   const photoActions = !!image && (
@@ -965,7 +969,20 @@ function App() {
                     </div>
                     <button
                       className={editing ? "tool selected-tool" : "tool"}
-                      onClick={() => setEditing(!editing)}
+                      onClick={() => {
+                        if (mobileControls) {
+                          if (!carImage.src || !activePhoto) {
+                            notify(
+                              "Carregue a foto do carro e selecione uma roda para ajustar.",
+                            );
+                            return;
+                          }
+                          setBefore(false);
+                          setShowWheels(true);
+                          setEditing(true);
+                          setMobileAdjustmentsVisible(true);
+                        } else setEditing(!editing);
+                      }}
                     >
                       <Move size={15} />
                       Ajustar rodas

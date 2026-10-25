@@ -16,16 +16,21 @@ export default function WheelFitControls({
   onSelect,
   onMove,
   onResize,
+  initialOpen = false,
+  onClose,
 }: {
   wheels: Placement[];
   selected: number;
   onSelect: (i: number) => void;
   onMove: (dx: number, dy: number) => void;
   onResize: (delta: number) => void;
+  initialOpen?: boolean;
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false),
+  const [open, setOpen] = useState(initialOpen),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null),
     active = useRef(false);
+  const handledPointer = useRef<HTMLButtonElement | null>(null);
   function stop() {
     active.current = false;
     if (timer.current) clearTimeout(timer.current);
@@ -38,11 +43,16 @@ export default function WheelFitControls({
     event: React.PointerEvent<HTMLButtonElement>,
     action: () => void,
   ) {
-    if (event.button !== 0) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
     stop();
     active.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    handledPointer.current = event.currentTarget;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* Click fallback remains available when capture is unsupported. */
+    }
     action();
     const repeat = () => {
       if (!active.current) return;
@@ -64,11 +74,17 @@ export default function WheelFitControls({
       className={position}
       onPointerDown={(e) => start(e, action)}
       onPointerUp={stop}
-      onPointerCancel={stop}
+      onPointerCancel={() => {
+        stop();
+        handledPointer.current = null;
+      }}
       onLostPointerCapture={stop}
       onBlur={stop}
       onClick={(e) => {
-        if (e.detail === 0) action();
+        const alreadyHandled =
+          e.detail !== 0 && handledPointer.current === e.currentTarget;
+        handledPointer.current = null;
+        if (!alreadyHandled) action();
       }}
     >
       {icon}
@@ -90,7 +106,8 @@ export default function WheelFitControls({
           title={open ? "Ocultar controles" : "Posicionar rodas"}
           onClick={() => {
             stop();
-            setOpen(!open);
+            if (open && onClose) onClose();
+            else setOpen((value) => !value);
           }}
         >
           {open ? <X size={15} /> : <Move size={15} />}

@@ -240,9 +240,10 @@ try {
   const toolsClosed = await page
     .locator(".config")
     .evaluate((el) => el.clientHeight);
+  await page.getByRole("button", { name: "Ajustar rodas", exact: true }).tap();
   await page
-    .getByRole("button", { name: "Mostrar ajustes", exact: true })
-    .click();
+    .getByRole("button", { name: "Mover roda para cima", exact: true })
+    .waitFor();
   const controlsRect = await page
     .locator(".mobile-photo-controls")
     .boundingBox();
@@ -282,10 +283,43 @@ try {
   assert.ok(Math.abs(hiddenPhoto.width - fullPhoto.width) < 1);
   await page
     .getByRole("button", { name: "Mostrar ajustes", exact: true })
-    .click();
+    .tap();
   await page
-    .getByRole("button", { name: "Abrir controle de posição", exact: true })
-    .click();
+    .getByRole("button", { name: "Mover roda para cima", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Ocultar controles", exact: true })
+    .tap();
+  assert.equal(await page.locator(".mobile-fixed-controls").count(), 0);
+  await page
+    .getByRole("button", { name: "Mostrar ajustes", exact: true })
+    .tap();
+  const beforeTap = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((el) => el.style.width);
+  await page
+    .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+    .tap();
+  const afterTap = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((el) => el.style.width);
+  assert.ok(
+    Math.abs(parseFloat(afterTap) - parseFloat(beforeTap) - 0.2) < 0.001,
+    "toque aumenta uma vez, sem duplicação",
+  );
+  await page
+    .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+    .dispatchEvent("click", { detail: 1 });
+  const afterFallback = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((el) => el.style.width);
+  assert.ok(
+    parseFloat(afterFallback) > parseFloat(afterTap),
+    "click sem pointerdown também funciona",
+  );
   const openPhoto = await page.locator(".scene").boundingBox();
   assert.ok(
     Math.abs(openPhoto.width - fullPhoto.width) < 1 &&

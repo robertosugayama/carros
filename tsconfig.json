@@ -24,6 +24,7 @@
     "wheelExtraction.ts",
     "storageUpload.ts",
     "aiErrors.ts",
+    "geminiGateway.ts",
     "database.ts",
     "api",
     "promote.ts",

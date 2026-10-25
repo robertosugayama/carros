@@ -35,7 +35,7 @@ test("pipeline extrai roda em fundo complexo com localização visual, centraliz
             },
           ],
         };
-      assert.equal(request.model, "gemini-2.5-flash");
+      assert.equal(request.model, "gemini-flash-latest");
       assert.equal(request.config?.responseMimeType, "application/json");
       return {
         text: JSON.stringify({

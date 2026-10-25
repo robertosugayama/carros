@@ -5,6 +5,7 @@ import { getAuth } from "firebase-admin/auth";
 import { GoogleGenAI, Type } from "@google/genai";
 import { firebaseConfig } from "./src/firebaseConfig.ts";
 import { fileURLToPath } from "node:url";
+import { geminiGenerator } from "./geminiGateway.ts";
 import { editWheelImage } from "./imageEditing.ts";
 import { imageServiceFailure } from "./aiErrors.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
@@ -90,12 +91,10 @@ app.post("/api/storage/upload", async (req, res) => {
     );
     res.status(result.status).json(result.body);
   } catch {
-    res
-      .status(504)
-      .json({
-        error:
-          "O envio ao Storage demorou além do limite. A foto tratada foi mantida; tente salvar novamente.",
-      });
+    res.status(504).json({
+      error:
+        "O envio ao Storage demorou além do limite. A foto tratada foi mantida; tente salvar novamente.",
+    });
   }
 });
 
@@ -119,7 +118,7 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
   if (!process.env.GEMINI_API_KEY)
     return res.status(503).json({
       error:
-        "Tratamento por IA não habilitado. Configure GEMINI_API_KEY na Vercel. O envio manual continua disponível.",
+        "Tratamento por IA não habilitado. Configure GEMINI_API_KEY na Vercel. A foto será mantida para uma nova tentativa.",
     });
   const last = limits.get(res.locals.user.id) || 0;
   if (Date.now() - last < 30000)
@@ -132,7 +131,7 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
     const output = await editWheelImage(
       image,
       { action, kind, caliper, discStyle },
-      (request) => ai.models.generateContent(request),
+      geminiGenerator(ai),
     );
     res.json({ image: output, origin: "generated" });
   } catch (cause) {
@@ -169,8 +168,8 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
   limits.set(key, Date.now());
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+    const response = await geminiGenerator(ai)({
+      model: process.env.GEMINI_MODEL || "gemini-flash-latest",
       contents: [
         { inlineData: { mimeType: match[1], data: match[2] } },
         {

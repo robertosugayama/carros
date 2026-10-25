@@ -1,5 +1,6 @@
 import express from "express";
 import { ensureMaster } from "./masterAccount.ts";
+import { geminiGenerator } from "./geminiGateway.ts";
 import { editWheelImage } from "./imageEditing.ts";
 import { imageServiceFailure } from "./aiErrors.ts";
 import { equalizeWheels } from "./src/wheelSizing.ts";
@@ -94,7 +95,7 @@ app.get("/api/status", async (_req, res) =>
   res.json({
     aiConfigured: !!process.env.GEMINI_API_KEY,
     imageAiConfigured: !!process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+    model: process.env.GEMINI_MODEL || "gemini-flash-latest",
   }),
 );
 app.get("/api/catalog", async (_req, res) =>
@@ -374,7 +375,7 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
     return res.status(503).json({
       error:
         res.locals.user.role === "master"
-          ? "Tratamento por IA não habilitado. Configure GEMINI_API_KEY e GEMINI_IMAGE_MODEL no servidor. O envio manual continua disponível."
+          ? "Tratamento por IA não habilitado. Configure GEMINI_API_KEY e GEMINI_IMAGE_MODEL no servidor. A foto será mantida para uma nova tentativa."
           : "Tratamento por IA não habilitado. Você pode enviar a foto e ajustar o enquadramento manualmente; consulte o administrador para ativar a IA.",
     });
   const last = imageEditLimits.get(res.locals.user.id) || 0;
@@ -388,7 +389,7 @@ app.post("/api/gemini/edit-wheel", async (req, res) => {
     const output = await editWheelImage(
       image,
       { action, kind, caliper, discStyle },
-      (request) => ai.models.generateContent(request),
+      geminiGenerator(ai),
     );
     res.json({ image: output, origin: "generated" });
   } catch (cause) {
@@ -571,8 +572,8 @@ app.post("/api/gemini/detect-wheels", async (req, res) => {
   aiLimits.set(res.locals.user.id, Date.now());
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+    const response = await geminiGenerator(ai)({
+      model: process.env.GEMINI_MODEL || "gemini-flash-latest",
       contents: [
         { inlineData: { mimeType: match[1], data: match[2] } },
         {

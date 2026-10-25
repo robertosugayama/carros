@@ -96,7 +96,7 @@ export async function editWheelImage(
         .png()
         .toBuffer();
       const located = await generate({
-        model: process.env.GEMINI_WHEEL_VISION_MODEL || "gemini-2.5-flash",
+        model: process.env.GEMINI_WHEEL_VISION_MODEL || "gemini-flash-latest",
         contents: [
           {
             inlineData: {

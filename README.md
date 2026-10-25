@@ -35,7 +35,7 @@ Para IA, mantenha somente no servidor:
 
 - `GEMINI_API_KEY` (Sensitive).
 - `GEMINI_IMAGE_MODEL`: modelo de edição disponível na sua conta; padrão `gemini-2.5-flash-image`.
-- `GEMINI_MODEL`: modelo de detecção disponível na sua conta; padrão solicitado `gemini-3.8-flash`.
+- `GEMINI_MODEL`: modelo de detecção disponível na sua conta; padrão solicitado `gemini-flash-latest`.
 
 Confirme os identificadores de modelos na sua conta. Não há chamada real Gemini validada nesta sessão. A chave web do Firebase é diferente da chave Gemini. Nunca use `VITE_` para segredos. Alterações de variáveis requerem **Redeploy**.
 
@@ -51,6 +51,10 @@ npm run dev
 ```
 
 Express e Vite usam a mesma porta 3000; use `PORT=3100` se necessário. Produção local: `npm run build` e `npm start`. A configuração web já aponta para o projeto fornecido. Para segredos locais, use `node --env-file=.env node_modules/tsx/dist/cli.mjs server.ts`; `.env` não é versionado.
+
+## Seleção e disponibilidade dos modelos Gemini
+
+`geminiGateway.ts` respeita o modelo configurado como primeira opção. Em erro 404 ou incompatibilidade de modalidades, consulta `models.list` com a própria chave e tenta um modelo Gemini compatível listado pelo serviço; não inventa nomes nem usa modelos Imagen na API generateContent. Imagem e visão têm seleção independente, com cache por hash da chave e prazo de cinco minutos. SDK retries ficam desativados para evitar repetições escondidas; há uma repetição controlada em HTTP 500/502/503. O orçamento total do pedido é 85 segundos, dentro dos 120 segundos da Function, respeitando também os sinais de cancelamento de cada etapa. Logs não registram chave nem mensagens brutas do Google. Testes usam SDK real com HTTP simulado para conferir o catálogo REST, a seleção, limites e classificação; a disponibilidade efetiva da conta em produção ainda depende do Gemini.
 
 ## Compatibilidade das Functions na Vercel
 
@@ -71,7 +75,7 @@ O runtime está fixado em Node `24.x` e o Firebase Admin em `13.10.0`. A série 
 
 O preparo pede à IA um fundo uniforme magenta e remove essa cor no servidor, inclusive nos vãos dos raios. Isso evita depender de transparência nativa na imagem devolvida pelo Gemini. Se a IA ignorar essa cor, o servidor também reconhece fundos uniformes pelas bordas e remove apenas regiões de cor semelhante conectadas à margem; detalhes claros isolados no interior são preservados. Fundos complexos e resultados sem conteúdo suficiente continuam sendo recusados. A saída intermediária é limitada a 1600 pixels para conter o uso de memória. O servidor valida o resultado e não salva imagens cujo fundo não pôde ser separado. Fotos de rodas com acabamento magenta podem exigir outro tratamento; a fidelidade da perspectiva depende da resposta do modelo.
 
-Quando a remoção por cor não é possível, o preparo faz uma segunda chamada de visão (`GEMINI_WHEEL_VISION_MODEL`, padrão `gemini-2.5-flash`) para localizar a face da roda e os espaços de fundo entre raios. O servidor valida as coordenadas/confiança, recorta a face, normaliza a elipse para 800×800 e aplica uma máscara circular com transparência nos vãos identificados. Não há ajustes manuais. São no máximo duas chamadas por tentativa; a chamada extra pode gerar custo Gemini. A Function tem limite de 120 segundos; os pedidos Gemini têm limites próprios de 45 e 20 segundos. Visão e geração podem errar em fotos com ocultação ou ângulo extremo; os testes locais simulam as respostas Gemini e não comprovam fidelidade em uma foto real ainda não fornecida.
+Quando a remoção por cor não é possível, o preparo faz uma segunda chamada de visão (`GEMINI_WHEEL_VISION_MODEL`, padrão `gemini-flash-latest`) para localizar a face da roda e os espaços de fundo entre raios. O servidor valida as coordenadas/confiança, recorta a face, normaliza a elipse para 800×800 e aplica uma máscara circular com transparência nos vãos identificados. Não há ajustes manuais. Normalmente há uma chamada de imagem e, se necessário, uma de recorte. Em caso de modelo indisponível, o app consulta o catálogo da própria chave e seleciona uma alternativa compatível, priorizando Flash. Cada etapa permite no máximo três tentativas, com uma troca de modelo e uma repetição em falha temporária; chamadas adicionais podem gerar custo Gemini. Chave inválida, cota e entrada inválida não são repetidas automaticamente. A Function tem limite de 120 segundos; os pedidos Gemini têm limites próprios de 45 e 20 segundos. Visão e geração podem errar em fotos com ocultação ou ângulo extremo; os testes locais simulam as respostas Gemini e não comprovam fidelidade em uma foto real ainda não fornecida.
 
 Falhas de IA retornam códigos específicos para chave recusada, acesso negado, cota, modelo indisponível, tempo limite e preparo da imagem. Os logs `AI_IMAGE_FAILURE` registram apenas código e status, sem chave, imagem ou mensagem bruta do provedor. O faturamento Blaze do Firebase não garante cota na API Gemini. Não há chamada real Gemini validada neste ambiente.
 

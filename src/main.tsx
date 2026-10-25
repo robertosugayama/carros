@@ -62,7 +62,7 @@ type Project = {
 };
 function App() {
   const [mobileAdjustmentsVisible, setMobileAdjustmentsVisible] =
-    useState(true);
+    useState(false);
   const [mobileControls, setMobileControls] = useState(
     () => window.matchMedia("(max-width: 780px)").matches,
   );
@@ -778,10 +778,13 @@ function App() {
                       }
                     >
                       {mobileAdjustmentsVisible ? (
-                        <EyeOff size={19} />
+                        <EyeOff size={17} />
                       ) : (
-                        <Eye size={19} />
+                        <Eye size={17} />
                       )}
+                      <span>
+                        {mobileAdjustmentsVisible ? "Voltar" : "Ajustar"}
+                      </span>
                     </button>
                   )}
                   <button
@@ -920,6 +923,13 @@ function App() {
                       aria-label="Ajustes fixos da foto"
                     >
                       {positionControls}
+                      <button
+                        type="button"
+                        className="finish-mobile-adjustments"
+                        onClick={() => setMobileAdjustmentsVisible(false)}
+                      >
+                        Concluir e voltar às ferramentas
+                      </button>
                     </div>
                   )}
               </section>

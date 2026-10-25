@@ -232,6 +232,17 @@ try {
     0,
     "foto não possui comandos sobrepostos no celular",
   );
+  assert.equal(
+    await page.locator(".mobile-fixed-controls").count(),
+    0,
+    "ajustes começam recolhidos",
+  );
+  const toolsClosed = await page
+    .locator(".config")
+    .evaluate((el) => el.clientHeight);
+  await page
+    .getByRole("button", { name: "Mostrar ajustes", exact: true })
+    .click();
   const controlsRect = await page
     .locator(".mobile-photo-controls")
     .boundingBox();
@@ -244,8 +255,18 @@ try {
     "nenhuma faixa vazia abaixo da foto",
   );
   await page
-    .getByRole("button", { name: "Ocultar ajustes", exact: true })
+    .getByRole("button", {
+      name: "Concluir e voltar às ferramentas",
+      exact: true,
+    })
     .click();
+  const toolsReturned = await page
+    .locator(".config")
+    .evaluate((el) => el.clientHeight);
+  assert.ok(
+    Math.abs(toolsReturned - toolsClosed) < 2,
+    "voltar devolve todo o espaço às ferramentas",
+  );
   assert.equal(
     await page.locator(".mobile-fixed-controls").count(),
     0,

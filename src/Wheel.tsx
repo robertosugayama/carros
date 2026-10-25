@@ -1,13 +1,15 @@
 import { useId, useState, useEffect } from "react";
-import { wheelImage, type DiscStyle } from "./brakeImages";
-import { models, finishes, rimRatio } from "./catalog";
+import { type DiscStyle } from "./brakeImages";
+import { models, finishes } from "./catalog";
+import { assembledWheelImage } from "./wheelAssembly";
+import { type TyreProfile } from "./tyres";
 import { findPhoto, usePhotoCatalog, type WheelPhoto } from "./PhotoCatalog";
 export default function Wheel({
   model = 0,
   finish = 0,
   size = 18,
   photo,
-  mounted = false,
+  tyreProfile = "medium",
   caliper,
   discStyle = "drilled",
 }: {
@@ -16,6 +18,7 @@ export default function Wheel({
   size?: number;
   photo?: WheelPhoto;
   mounted?: boolean;
+  tyreProfile?: TyreProfile;
   discStyle?: DiscStyle;
   caliper?: number;
   angle?: number;
@@ -30,7 +33,7 @@ export default function Wheel({
       return;
     }
     setRendered("");
-    wheelImage(asset, caliper, discStyle)
+    assembledWheelImage(asset, size, tyreProfile, caliper, discStyle)
       .then((value) => {
         if (!cancelled) setRendered(value);
       })
@@ -38,10 +41,9 @@ export default function Wheel({
     return () => {
       cancelled = true;
     };
-  }, [asset, caliper, discStyle]);
+  }, [asset, caliper, discStyle, size, tyreProfile]);
   const id = useId().replace(/:/g, "");
-  const ratio = mounted && asset?.kind === "rim" ? rimRatio(size) : 1;
-  const edge = (1000 - 1000 * ratio) / 2;
+
   if (!asset)
     return (
       <span
@@ -58,19 +60,21 @@ export default function Wheel({
       viewBox="0 0 1000 1000"
       role="img"
       aria-label={`${asset.origin === "generated" ? "Imagem gerada por IA de" : "Fotografia de"} ${asset.name || (typeof model === "number" ? models[model]?.name : undefined) || "Roda enviada"}, aro ${size}, ${finishes[finish]?.[0]}`}
+      data-tyre-profile={tyreProfile}
+      data-rim-size={size}
       style={{ width: "100%", height: "100%", display: "block" }}
     >
       <defs>
         <clipPath id={id}>
-          <circle cx="500" cy="500" r={499 * ratio} />
+          <circle cx="500" cy="500" r={499} />
         </clipPath>
       </defs>
       <image
-        href={rendered || asset.image}
-        x={edge}
-        y={edge}
-        width={1000 * ratio}
-        height={1000 * ratio}
+        href={rendered || undefined}
+        x={0}
+        y={0}
+        width={1000}
+        height={1000}
         preserveAspectRatio="xMidYMid slice"
         clipPath={`url(#${id})`}
       />

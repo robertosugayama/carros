@@ -38,8 +38,14 @@ import {
 } from "./catalog";
 import { PhotoCatalog, findPhoto, type WheelPhoto } from "./PhotoCatalog";
 import PhotoUpload from "./PhotoUpload";
-import { wheelImage, hasDiscStyle, type DiscStyle } from "./brakeImages";
+import { hasDiscStyle, type DiscStyle } from "./brakeImages";
 import { generatedPhotos, mergePhotos, inlinePhoto } from "./generatedPhotos";
+import {
+  tyreProfiles,
+  type TyreProfile,
+  validTyreProfile,
+  outerDiameterMm,
+} from "./tyres";
 import "./style.css";
 import { api } from "./api";
 type User = { id: number | string; name: string; role: string };
@@ -61,6 +67,7 @@ function App() {
     [caliper, setCaliper] = useState(4),
     [angle, setAngle] = useState(20),
     [size, setSize] = useState(18),
+    [tyreProfile, setTyreProfile] = useState<TyreProfile>("medium"),
     [zoom, setZoom] = useState(1),
     [wheels, setWheels] = useState<Placement[]>(defaultWheels),
     [selected, setSelected] = useState(0),
@@ -107,14 +114,10 @@ function App() {
   const modelName = (id: number | string) =>
     models.find((m) => m.id === id)?.name || "Roda enviada";
   const activePhoto =
-    savedPhoto?.model === model &&
-    savedPhoto?.finish === finish &&
-    (savedPhoto?.kind === "rim" || savedPhoto?.size === size)
+    savedPhoto?.model === model && savedPhoto?.finish === finish
       ? savedPhoto
       : findPhoto(photos, model, finish, size) ||
-        photos.find(
-          (p) => p.model === model && p.finish === finish && p.kind === "rim",
-        );
+        photos.find((p) => p.model === model && p.finish === finish);
   function chooseModel(id: number | string) {
     setModel(id);
     setBrakesDirty(false);
@@ -254,6 +257,26 @@ function App() {
       URL.revokeObjectURL(url);
     }
   }
+  function changeTyreProfile(next: TyreProfile) {
+    const scale =
+      outerDiameterMm(size, next) / outerDiameterMm(size, tyreProfile);
+    setWheels((old) =>
+      equalizeWheels(
+        old.map((w) => ({ ...w, diameter: clampDiameter(w.diameter * scale) })),
+      ),
+    );
+    setTyreProfile(next);
+  }
+  function changeRimSize(next: number) {
+    const scale =
+      outerDiameterMm(next, tyreProfile) / outerDiameterMm(size, tyreProfile);
+    setWheels((old) =>
+      equalizeWheels(
+        old.map((w) => ({ ...w, diameter: clampDiameter(w.diameter * scale) })),
+      ),
+    );
+    setSize(next);
+  }
   function setWheelDiameter(index: number, diameter: number) {
     setSelected(index);
     setEditing(true);
@@ -359,8 +382,9 @@ function App() {
         "Este modelo ainda precisa de uma fotografia real no catálogo.",
       );
     if (
-      !hasDiscStyle(activePhoto, discStyle) ||
-      (brakesDirty && activePhoto.caliperHue === undefined)
+      activePhoto.kind !== "rim" &&
+      (!hasDiscStyle(activePhoto, discStyle) ||
+        (brakesDirty && activePhoto.caliperHue === undefined))
     )
       return notify("Aplique o tratamento por IA aos freios antes de salvar.");
     if (!user) return setAuth(true);
@@ -375,6 +399,7 @@ function App() {
           finish,
           caliper,
           discStyle,
+          tyreProfile,
           angle,
           size,
           wheels,
@@ -413,12 +438,12 @@ function App() {
           svg.setAttribute("width", "500");
           svg.setAttribute("height", "500");
           for (const node of svg.querySelectorAll("image")) {
-            node.setAttribute(
-              "href",
-              await inlinePhoto(
-                await wheelImage(activePhoto, caliper, discStyle),
-              ),
-            );
+            const source = node.getAttribute("href");
+            if (!source)
+              throw Error(
+                "Aguarde a roda terminar de carregar antes de exportar.",
+              );
+            node.setAttribute("href", await inlinePhoto(source));
           }
           const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
               type: "image/svg+xml",
@@ -465,6 +490,7 @@ function App() {
     setFinish(d.finish);
     setCaliper(d.caliper);
     setDiscStyle(d.discStyle || "drilled");
+    setTyreProfile(validTyreProfile(d.tyreProfile));
     setBrakesDirty(false);
     setAngle(d.angle);
     setSize(d.size);
@@ -630,6 +656,7 @@ function App() {
                                 angle,
                                 size,
                                 discStyle,
+                                tyreProfile,
                               }}
                               photo={activePhoto}
                               mounted
@@ -843,7 +870,15 @@ function App() {
                   <div className="model-current">
                     <div className="wheel-preview">
                       <Wheel
-                        {...{ model, finish, caliper, angle, size, discStyle }}
+                        {...{
+                          model,
+                          finish,
+                          caliper,
+                          angle,
+                          size,
+                          discStyle,
+                          tyreProfile,
+                        }}
                         photo={activePhoto}
                       />
                     </div>
@@ -983,49 +1018,46 @@ function App() {
                     </h3>
                     <strong>{size}”</strong>
                   </div>
-                  {activePhoto?.kind === "assembly" ? (
-                    <p className="rim-size-explainer">
-                      Aro representado na imagem: {size}”. Para encaixar a roda
-                      no carro, use <b>Ajustar tamanho das duas rodas</b>, junto
-                      à imagem.
-                    </p>
-                  ) : (
-                    <>
-                      <input
-                        aria-label="Tamanho do aro"
-                        type="range"
-                        min="14"
-                        max="22"
-                        value={size}
-                        disabled={
-                          !photos.some(
-                            (p) => p.model === model && p.finish === finish,
-                          )
-                        }
-                        onChange={(e) => {
-                          const p = findPhoto(
-                            photos,
-                            model,
-                            finish,
-                            Number(e.target.value),
-                          );
-                          if (activePhoto?.kind === "rim") {
-                            setSize(Number(e.target.value));
-                          } else if (p) {
-                            setSavedPhoto(undefined);
-                            setSize(p.size);
-                          } else
-                            notify(
-                              "Cadastre uma fotografia real deste aro para manter o pneu e a roda autênticos.",
-                            );
-                        }}
-                      />
-                      <div className="range-labels">
-                        <span>14”</span>
-                        <span>Somente aros com foto cadastrada · 22”</span>
-                      </div>
-                    </>
-                  )}
+                  <input
+                    aria-label="Tamanho do aro"
+                    type="range"
+                    min="14"
+                    max="22"
+                    value={size}
+                    disabled={!activePhoto}
+                    onChange={(e) => changeRimSize(Number(e.target.value))}
+                  />
+                  <div className="range-labels">
+                    <span>14”</span>
+                    <span>22”</span>
+                  </div>
+                  <fieldset className="tyre-options">
+                    <legend>Perfil do pneu</legend>
+                    <div>
+                      {tyreProfiles.map((profile) => (
+                        <label
+                          key={profile.id}
+                          className={
+                            tyreProfile === profile.id ? "selected" : ""
+                          }
+                        >
+                          <input
+                            type="radio"
+                            name="tyre-profile"
+                            checked={tyreProfile === profile.id}
+                            onChange={() => changeTyreProfile(profile.id)}
+                          />
+                          <b>{profile.name}</b>
+                          <span>{profile.aspect}%</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <p className="rim-size-explainer">
+                    Roda e pneu mudam juntos nas duas posições. Textura de
+                    aparência fotográfica gerada por IA. Perfis ilustrados com
+                    largura de referência de 225 mm.
+                  </p>
                 </section>
                 <section>
                   <div className="label-heading">
@@ -1074,11 +1106,12 @@ function App() {
                       </label>
                     ))}
                   </fieldset>
-                  {activePhoto?.caliperHue !== undefined &&
-                  hasDiscStyle(activePhoto, discStyle) ? (
+                  {activePhoto?.kind === "rim" ||
+                  (activePhoto?.caliperHue !== undefined &&
+                    hasDiscStyle(activePhoto, discStyle)) ? (
                     <p className="photographic-brakes">
-                      Prévia aplicada às duas rodas. A cor mantém o relevo e as
-                      sombras da imagem.
+                      Disco proporcional de referência (280 mm), atrás dos
+                      raios. Cor e tipo de disco aplicados às duas rodas.
                     </p>
                   ) : (
                     <div className="brake-ai-apply">

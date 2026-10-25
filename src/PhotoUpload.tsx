@@ -141,7 +141,7 @@ export default function PhotoUpload({
             </h2>
             <p>
               A IA remove o fundo, centraliza a roda e corrige a perspectiva
-              automaticamente. O pneu do carro será preservado.
+              automaticamente. O pneu e os freios serão adicionados na montagem.
             </p>
           </div>
         </div>

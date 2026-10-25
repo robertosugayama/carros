@@ -50,7 +50,7 @@ try {
     .waitFor();
   assert.equal(await page.locator(".model").count(), 21);
   await page.screenshot({
-    path: fileURLToPath(new URL("../desktop.png", import.meta.url)),
+    path: "/tmp/carros-desktop.png",
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -60,7 +60,7 @@ try {
     ),
   );
   await page.screenshot({
-    path: fileURLToPath(new URL("../mobile.png", import.meta.url)),
+    path: "/tmp/carros-mobile.png",
     fullPage: true,
   });
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -127,13 +127,22 @@ try {
     true,
   );
   assert.ok((await upload.boundingBox()).width <= 540);
+  const preparedFixture = await page.evaluate(async () => {
+    const image = new Image();
+    image.src = "/wheels/silver-split-rim.png";
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 800;
+    canvas.getContext("2d").drawImage(image, 0, 0, 800, 800);
+    return canvas.toDataURL("image/webp", 0.88);
+  });
   // Simulate a successful provider reply to verify preview/review UX only.
   await page.route("**/api/gemini/edit-wheel", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        image: "data:image/png;base64," + fixture,
+        image: preparedFixture,
         origin: "generated",
       }),
     }),
@@ -198,6 +207,14 @@ try {
   left = await page.locator(".wheel-overlay").first().boundingBox();
   right = await page.locator(".wheel-overlay").last().boundingBox();
   assert.ok(Math.abs(left.width - right.width) < 1);
+  await page.getByRole("radio", { name: "Alto" }).check();
+  left = await page.locator(".wheel-overlay").first().boundingBox();
+  right = await page.locator(".wheel-overlay").last().boundingBox();
+  assert.ok(Math.abs(left.width - right.width) < 1);
+  assert.equal(
+    await page.locator('.wheel-overlay svg[data-tyre-profile="high"]').count(),
+    2,
+  );
   await page.getByRole("button", { name: "Ver original" }).click();
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
   await page.getByRole("button", { name: "Ver depois" }).click();
@@ -282,11 +299,36 @@ try {
     await page.locator(".wheel-overlay svg image").last().getAttribute("href"),
     solid,
   );
+  await page.getByRole("radio", { name: "Baixo" }).check();
+  await page
+    .getByRole("slider", { name: "Tamanho do aro", exact: true })
+    .fill("20");
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".wheel-overlay svg")].every(
+      (el) =>
+        el.getAttribute("data-rim-size") === "20" &&
+        el.querySelector("image")?.getAttribute("href")?.startsWith("data:"),
+    ),
+  );
+  await page.screenshot({
+    path: "/tmp/carros-tyres-mobile.png",
+    fullPage: true,
+  });
+  await page
+    .locator(".wheel-preview")
+    .first()
+    .screenshot({ path: "/tmp/carros-tyre-preview.png" });
   const saving = page.waitForResponse(
     (r) => r.url().endsWith("/api/projects") && r.request().method() === "POST",
   );
   await page.getByRole("button", { name: "Salvar na minha garagem" }).click();
-  assert.equal((await saving).status(), 201);
+  const projectResponse = await saving;
+  assert.equal(projectResponse.status(), 201);
+  const savedProjects = await (
+    await page.request.get(base + "/api/projects")
+  ).json();
+  assert.equal(savedProjects[0].payload.tyreProfile, "low");
+  assert.equal(savedProjects[0].payload.size, 20);
   await page
     .getByRole("button", { name: "Minha garagem", exact: true })
     .click();
@@ -301,6 +343,13 @@ try {
       .getByRole("button", { name: "Pinça Azul", exact: true })
       .getAttribute("aria-pressed"),
     "true",
+  );
+  assert.ok(await page.getByRole("radio", { name: "Baixo" }).isChecked());
+  assert.equal(
+    await page
+      .getByRole("slider", { name: "Tamanho do aro", exact: true })
+      .inputValue(),
+    "20",
   );
   const download = page.waitForEvent("download");
   await page

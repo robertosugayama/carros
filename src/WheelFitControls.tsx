@@ -10,13 +10,13 @@ import {
   X,
 } from "lucide-react";
 import type { Placement } from "./catalog";
-const resizeRepeat = { delay: 200, interval: 50 };
 export default function WheelFitControls({
   wheels,
   selected,
   onSelect,
   onMove,
   onResize,
+  onResizeEnd,
   initialOpen = false,
   onClose,
 }: {
@@ -24,22 +24,94 @@ export default function WheelFitControls({
   selected: number;
   onSelect: (i: number) => void;
   onMove: (dx: number, dy: number) => void;
-  onResize: (delta: number) => void;
+  onResize: (delta: number) => number;
+  onResizeEnd: () => void;
   initialOpen?: boolean;
   onClose?: () => void;
 }) {
   const [open, setOpen] = useState(initialOpen),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null),
     active = useRef(false);
+  const sizeFrame = useRef<number | null>(null),
+    resizing = useRef(false),
+    sizeOutput = useRef<HTMLOutputElement>(null);
   const handledPointer = useRef<HTMLButtonElement | null>(null);
   function stop() {
     active.current = false;
     if (timer.current) clearTimeout(timer.current);
+    if (sizeFrame.current !== null) {
+      cancelAnimationFrame(sizeFrame.current);
+      sizeFrame.current = null;
+    }
+    if (resizing.current) {
+      resizing.current = false;
+      onResizeEnd();
+    }
   }
   useEffect(() => () => stop(), []);
   useEffect(() => {
     stop();
   }, [selected]);
+  useEffect(() => {
+    if (resizing.current) stop();
+  }, [wheels]);
+  function previewSize(delta: number) {
+    const diameter = onResize(delta);
+    const label = `${Math.round(diameter * 100)}%`;
+    if (sizeOutput.current && sizeOutput.current.textContent !== label)
+      sizeOutput.current.textContent = label;
+  }
+  function startSize(
+    event: React.PointerEvent<HTMLButtonElement>,
+    sign: number,
+  ) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    stop();
+    resizing.current = true;
+    handledPointer.current = event.currentTarget;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+    previewSize(sign);
+    let previous = performance.now() + 50;
+    const paint = (now: number) => {
+      if (!resizing.current) return;
+      if (now > previous) {
+        const elapsed = Math.min(50, now - previous);
+        previous = now;
+        previewSize((sign * elapsed) / 50);
+      }
+      sizeFrame.current = requestAnimationFrame(paint);
+    };
+    sizeFrame.current = requestAnimationFrame(paint);
+  }
+  const sizeButton = (label: string, icon: React.ReactNode, sign: number) => (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onPointerDown={(event) => startSize(event, sign)}
+      onPointerUp={stop}
+      onLostPointerCapture={stop}
+      onBlur={stop}
+      onPointerCancel={() => {
+        stop();
+        handledPointer.current = null;
+      }}
+      onClick={(event) => {
+        const handled =
+          event.detail !== 0 && handledPointer.current === event.currentTarget;
+        handledPointer.current = null;
+        if (!handled) {
+          previewSize(sign);
+          onResizeEnd();
+        }
+      }}
+    >
+      {icon}
+    </button>
+  );
   function start(
     event: React.PointerEvent<HTMLButtonElement>,
     action: () => void,
@@ -172,23 +244,11 @@ export default function WheelFitControls({
         role="group"
         aria-label="Tamanho das duas rodas"
       >
-        {button(
-          "Diminuir as duas rodas",
-          <Minus size={20} />,
-          () => onResize(-1),
-          undefined,
-          resizeRepeat,
-        )}
-        <output aria-label="Tamanho das rodas">
+        {sizeButton("Diminuir as duas rodas", <Minus size={20} />, -1)}
+        <output ref={sizeOutput} aria-label="Tamanho das rodas">
           {Math.round(wheels[0].diameter * 100)}%
         </output>
-        {button(
-          "Aumentar as duas rodas",
-          <Plus size={20} />,
-          () => onResize(1),
-          undefined,
-          resizeRepeat,
-        )}
+        {sizeButton("Aumentar as duas rodas", <Plus size={20} />, 1)}
       </div>
     </>
   );

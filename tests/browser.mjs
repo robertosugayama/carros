@@ -415,6 +415,15 @@ try {
   ).json();
   assert.equal(savedProjects[0].payload.tyreProfile, "low");
   assert.equal(savedProjects[0].payload.size, 20);
+  const visibleDiameter = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((node) => parseFloat(node.style.width) / 100);
+  assert.ok(
+    Math.abs(savedProjects[0].payload.wheels[0].diameter - visibleDiameter) <
+      0.00001,
+    "tamanho salvo corresponde à prévia",
+  );
   await page
     .getByRole("button", { name: "Minha garagem", exact: true })
     .click();

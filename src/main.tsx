@@ -210,6 +210,9 @@ function App() {
     gallery = useRef<HTMLInputElement>(null),
     camera = useRef<HTMLInputElement>(null);
   const drag = useRef<{ index: number; pointer: number } | null>(null);
+  const resizePreview = useRef<{ base: Placement[]; diameter: number } | null>(
+    null,
+  );
   function notify(t: string) {
     setMessage(t);
   }
@@ -329,10 +332,29 @@ function App() {
     );
   }
   function resizeBoth(delta: number) {
-    setEditing(true);
-    setWheels((old) =>
-      equalizeWheels(old, clampDiameter(old[0].diameter + delta * 0.005)),
-    );
+    if (!resizePreview.current) {
+      setEditing(true);
+      resizePreview.current = { base: wheels, diameter: wheels[0].diameter };
+    }
+    const preview = resizePreview.current;
+    preview.diameter = clampDiameter(preview.diameter + delta * 0.005);
+    // Preview is painted directly; React commits the final value on release.
+    scene.current
+      ?.querySelectorAll<HTMLElement>(".wheel-overlay")
+      .forEach((node) => {
+        node.style.width = `${preview.diameter * 100}%`;
+      });
+    return preview.diameter;
+  }
+  function commitResize() {
+    const preview = resizePreview.current;
+    resizePreview.current = null;
+    if (preview)
+      setWheels((current) =>
+        current === preview.base
+          ? equalizeWheels(current, preview.diameter)
+          : current,
+      );
   }
   function pointer(e: React.PointerEvent) {
     if (!drag.current || !scene.current) return;
@@ -606,6 +628,7 @@ function App() {
         }}
         onMove={moveSelectedWheel}
         onResize={resizeBoth}
+        onResizeEnd={commitResize}
         initialOpen={mobileControls}
         onClose={
           mobileControls ? () => setMobileAdjustmentsVisible(false) : undefined

@@ -404,6 +404,57 @@ try {
     afterHold,
     "soltar o controle interrompe o movimento",
   );
+  await page.evaluate(() => {
+    window.__sizeFrames = 0;
+    window.__sizeObserver = new MutationObserver(() => window.__sizeFrames++);
+    window.__sizeObserver.observe(document.querySelector(".wheel-overlay"), {
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+  });
+  const traffic = [];
+  const watchSize = (request) => {
+    if (request.url().startsWith(base + "/api/")) traffic.push(request.url());
+  };
+  page.on("request", watchSize);
+  const resizeButton = await page
+    .getByRole("button", { name: "Aumentar as duas rodas", exact: true })
+    .boundingBox();
+  await page.mouse.move(
+    resizeButton.x + resizeButton.width / 2,
+    resizeButton.y + resizeButton.height / 2,
+  );
+  await page.mouse.down();
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  const liveSizes = await page
+    .locator(".wheel-overlay")
+    .evaluateAll((nodes) => nodes.map((node) => node.style.width));
+  assert.equal(
+    liveSizes[0],
+    liveSizes[1],
+    "prévia contínua mantém os dois tamanhos iguais",
+  );
+  await page.mouse.up();
+  page.off("request", watchSize);
+  const frames = await page.evaluate(() => {
+    window.__sizeObserver.disconnect();
+    return window.__sizeFrames;
+  });
+  assert.ok(frames >= 12, `atualização contínua por quadros: ${frames}`);
+  assert.equal(traffic.length, 0, "ajuste em tempo real não usa rede");
+  const releasedSize = await page
+    .locator(".wheel-overlay")
+    .first()
+    .evaluate((node) => node.style.width);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(
+    await page
+      .locator(".wheel-overlay")
+      .first()
+      .evaluate((node) => node.style.width),
+    releasedSize,
+    "soltar interrompe redimensionamento",
+  );
   const frozenTools = await page.evaluate(() => ({
     client: document.scrollingElement.clientHeight,
     total: document.scrollingElement.scrollHeight,

@@ -800,6 +800,75 @@ function App() {
                       onResize={resizeBoth}
                     />
                   )}
+                  {!!image && (
+                    <div
+                      className="photo-quick-actions"
+                      role="group"
+                      aria-label="Ações da foto e das rodas"
+                    >
+                      <div>
+                        <span>Rodas</span>
+                        <button
+                          type="button"
+                          aria-label="Trocar rodas"
+                          title="Trocar rodas"
+                          onClick={() => {
+                            if (confirm("Trocar as rodas desta montagem?"))
+                              swapWheels();
+                          }}
+                        >
+                          <RefreshCw size={17} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Remover rodas"
+                          title="Remover rodas da foto"
+                          disabled={!showWheels}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Remover as rodas desta foto? Elas continuarão no catálogo.",
+                              )
+                            )
+                              setShowWheels(false);
+                          }}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                      <div>
+                        <span>Foto</span>
+                        <button
+                          type="button"
+                          aria-label="Trocar foto"
+                          title="Trocar foto do carro"
+                          onClick={() => {
+                            if (
+                              confirm("Trocar a foto do carro desta montagem?")
+                            )
+                              gallery.current?.click();
+                          }}
+                        >
+                          <RefreshCw size={17} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Remover carro"
+                          title="Remover foto do carro"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Remover a foto desta montagem? Seus projetos salvos serão mantidos.",
+                              )
+                            )
+                              removeCar();
+                          }}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {busy && (
                     <div className="scanner">
                       <div className="scan-line" />
@@ -867,40 +936,6 @@ function App() {
                     <span className="photo-label">
                       {!image ? "CARREGUE SUA FOTO" : "FOTOGRAFIA REAL"}
                     </span>
-                  </div>
-                  <div className="photo-actions">
-                    <button
-                      type="button"
-                      onClick={swapWheels}
-                      disabled={!image}
-                    >
-                      <RefreshCw size={17} />
-                      Trocar rodas
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowWheels(false)}
-                      disabled={!image || !showWheels}
-                    >
-                      <X size={17} />
-                      Remover rodas
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => gallery.current?.click()}
-                    >
-                      <ImagePlus size={17} />
-                      {image ? "Trocar foto" : "Adicionar carro"}
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      onClick={removeCar}
-                      disabled={!image}
-                    >
-                      <Trash2 size={17} />
-                      Remover carro
-                    </button>
                   </div>
                 </div>
                 {!image && (

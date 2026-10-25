@@ -207,6 +207,9 @@ try {
     })),
   );
   await page
+    .getByRole("button", { name: "Abrir controle de posição", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "Posicionar roda direita", exact: true })
     .click();
   await page
@@ -229,10 +232,17 @@ try {
     .evaluateAll((els) => els.map((e) => e.style.width));
   assert.equal(sized[0], sized[1]);
   assert.ok(parseFloat(sized[0]) > parseFloat(positions[0].width));
+  page.once("dialog", (d) => d.dismiss());
+  await page
+    .getByRole("button", { name: "Remover rodas", exact: true })
+    .click();
+  assert.equal(await page.locator(".wheel-overlay").count(), 2);
+  page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", { name: "Remover rodas", exact: true })
     .click();
   assert.equal(await page.locator(".wheel-overlay").count(), 0);
+  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Trocar rodas", exact: true }).click();
   await page
     .locator(".model")
@@ -425,6 +435,7 @@ try {
       .count(),
     0,
   );
+  page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", { name: "Remover carro", exact: true })
     .click();

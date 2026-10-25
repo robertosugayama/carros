@@ -2125,7 +2125,7 @@ label > select {
 /* Photo and controls are separate from the scrollable tools. */
 .workspace.has-car {
   --stage-height: min(68dvh, 650px);
-  --photo-height: calc(var(--stage-height) - 180px);
+  --photo-height: var(--stage-height);
   align-items: start;
 }
 .workspace.has-car .editor {
@@ -2150,9 +2150,6 @@ label > select {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-}
-.workspace.has-car .viewport:has(.wheel-joystick[data-open="false"]) {
-  --photo-height: var(--stage-height);
 }
 .wheel-joystick {
   position: absolute;
@@ -2275,7 +2272,7 @@ label > select {
     height: 100dvh;
     gap: 8px;
     --stage-height: clamp(340px, calc(48dvh - 38px), 460px);
-    --photo-height: calc(var(--stage-height) - 180px);
+    --photo-height: var(--stage-height);
     scroll-margin-top: 0;
   }
   .workspace.has-car .editor {
@@ -2327,4 +2324,83 @@ label > select {
   .workspace.has-car .config .photo-actions {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Discreet overlays never reserve space or change the photograph's scale. */
+.wheel-joystick:not([data-open="true"]) {
+  width: 40px;
+  padding: 0;
+  background: #ffffffdf;
+}
+.wheel-joystick:not([data-open="true"]) .joystick-toggle {
+  height: 40px;
+  font-size: 0;
+}
+.wheel-joystick:not([data-open="true"]) .joystick-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+.viewport > .joystick-size {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 8;
+  width: 132px;
+  padding: 4px;
+  margin: 0;
+  border: 1px solid #d1dbc8;
+  border-radius: 10px;
+  background: #ffffffdf;
+  box-shadow: 0 2px 8px #0001;
+  touch-action: none;
+}
+.viewport > .joystick-size button {
+  border: 0;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  color: #354a26;
+  touch-action: none;
+}
+.photo-quick-actions {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 8;
+  display: flex;
+  gap: 8px;
+}
+.photo-quick-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border: 1px solid #d6dfce;
+  border-radius: 9px;
+  background: #ffffffdf;
+  box-shadow: 0 2px 6px #0001;
+}
+.photo-quick-actions span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475b38;
+  padding: 0 4px;
+}
+.photo-quick-actions button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #536047;
+  background: transparent;
+}
+.photo-quick-actions button:active {
+  background: #e4edda;
+}
+.photo-quick-actions button:disabled {
+  opacity: 0.35;
 }

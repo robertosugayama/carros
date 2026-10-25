@@ -215,6 +215,34 @@ try {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
+  const fullPhoto = await page.locator(".scene").boundingBox(),
+    fullFrame = await page.locator(".viewport").boundingBox();
+  assert.ok(
+    fullPhoto.width > fullFrame.width * 0.95,
+    "foto usa toda a largura, sem reservar espaço para controles",
+  );
+  for (const name of [
+    "Trocar rodas",
+    "Remover rodas",
+    "Trocar foto",
+    "Remover carro",
+  ])
+    assert.equal(
+      await page
+        .locator(".config")
+        .getByRole("button", { name, exact: true })
+        .count(),
+      0,
+    );
+  await page
+    .getByRole("button", { name: "Abrir controle de posição", exact: true })
+    .click();
+  const openPhoto = await page.locator(".scene").boundingBox();
+  assert.ok(
+    Math.abs(openPhoto.width - fullPhoto.width) < 1 &&
+      Math.abs(openPhoto.height - fullPhoto.height) < 1,
+    "abrir joystick não reduz a foto",
+  );
   const frozenBefore = await page.locator(".viewport").boundingBox();
   await page.locator(".config").evaluate((el) => {
     el.scrollTop = el.scrollHeight;

@@ -1,3 +1,4 @@
+import { canvasImageSource } from "./imageSource";
 import type { WheelPhoto } from "./PhotoCatalog";
 export const generatedPhotos: WheelPhoto[] = [
   {
@@ -48,10 +49,11 @@ export function mergePhotos(remote: WheelPhoto[]) {
 }
 export async function inlinePhoto(image: string): Promise<string> {
   if (image.startsWith("data:")) return image;
+  if (image.startsWith("https://firebasestorage.googleapis.com/"))
+    return canvasImageSource(image);
   if (
-    image.startsWith("https://firebasestorage.googleapis.com/") ||
-    (import.meta.env.VITE_FIREBASE_EMULATORS === "true" &&
-      image.startsWith("http://127.0.0.1:9199/"))
+    import.meta.env.VITE_FIREBASE_EMULATORS === "true" &&
+    image.startsWith("http://127.0.0.1:9199/")
   ) {
     const response = await fetch(image);
     if (!response.ok)

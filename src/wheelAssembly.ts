@@ -1,3 +1,4 @@
+import { canvasImageSource } from "./imageSource";
 import type { WheelPhoto } from "./PhotoCatalog";
 import { calipers } from "./catalog";
 import { recolorPixel, wheelImage, type DiscStyle } from "./brakeImages";
@@ -9,7 +10,7 @@ function load(source: string) {
     result = (async () => {
       const image = new Image();
       image.crossOrigin = "anonymous";
-      image.src = source;
+      image.src = await canvasImageSource(source);
       await image.decode();
       return image;
     })();

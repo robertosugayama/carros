@@ -1,3 +1,4 @@
+import { canvasImageSource } from "./imageSource";
 import type { WheelPhoto } from "./PhotoCatalog";
 import { calipers } from "./catalog";
 export type DiscStyle = "drilled" | "solid";
@@ -65,7 +66,7 @@ export function wheelImage(
   if (found) return found;
   const promise = (async () => {
     const img = new Image();
-    img.src = image;
+    img.src = await canvasImageSource(image);
     await img.decode();
     const c = document.createElement("canvas");
     c.width = 800;

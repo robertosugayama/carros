@@ -1,4 +1,5 @@
 import express from "express";
+import { readStorageImage } from "./storageRead.ts";
 import { uploadStorageImage } from "./storageUpload.ts";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -41,6 +42,26 @@ app.get("/api/status", (_req, res) =>
     imageAiConfigured: !!process.env.GEMINI_API_KEY,
   }),
 );
+app.post("/api/storage/image", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+    const result = await readStorageImage(
+      req.body?.image,
+      firebaseConfig.storageBucket,
+      token,
+      (value) => getAuth(admin).verifyIdToken(value),
+    );
+    if (result.data) res.status(200).type(result.type!).send(result.data);
+    else res.status(result.status).json({ error: result.error });
+  } catch {
+    res
+      .status(502)
+      .json({
+        error:
+          "Não foi possível carregar a foto salva. Tente novamente em instantes.",
+      });
+  }
+});
 app.use("/api", async (req, res, next) => {
   const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
   if (!token)

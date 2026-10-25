@@ -1,9 +1,10 @@
+import { readFile } from "node:fs/promises";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomInt } from "node:crypto";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 const port = 33000 + randomInt(1000),
   base = `http://127.0.0.1:${port}`;
 const child = spawn(
@@ -46,7 +47,47 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } }),
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  const remoteUrl =
+    "https://firebasestorage.googleapis.com/v0/b/carros-ed674.firebasestorage.app/o/catalog%2Fmaster%2Fremote.webp?alt=media&token=test-only-token";
+  await rules.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), "wheelPhotos", "remote-wheel"), {
+      name: "Roda remota salva",
+      model: "remote-wheel",
+      finish: 1,
+      size: 18,
+      kind: "rim",
+      origin: "generated",
+      image: remoteUrl,
+      source: "",
+      credit: "Teste remoto",
+      owner_id: "master",
+      public: true,
+    });
+  });
+  const rim = await readFile(
+    new URL("../public/wheels/silver-split-rim.png", import.meta.url),
+  );
+  let reads = 0,
+    direct = 0;
+  await page.route("https://firebasestorage.googleapis.com/**", (route) => {
+    direct++;
+    return route.abort();
+  });
+  await page.route("**/api/storage/image", (route) => {
+    reads++;
+    assert.equal(route.request().postDataJSON().image, remoteUrl);
+    return route.fulfill({ status: 200, contentType: "image/png", body: rim });
+  });
   await page.goto(base);
+  const remoteCard = page
+    .locator(".model")
+    .filter({ hasText: "Roda remota salva" });
+  await remoteCard.locator('svg[data-load-state="ready"]').waitFor();
+  await remoteCard.click();
+  await page.locator('.wheel-preview svg[data-load-state="ready"]').waitFor();
+  assert.equal(direct, 0);
+  assert.equal(reads, 1, "a miniatura e a prévia compartilham a mesma leitura");
+
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page
     .getByRole("button", { name: "Ainda não tenho conta. Quero me cadastrar" })
@@ -62,6 +103,20 @@ try {
   const credentials = await (await signup).json();
   assert.ok(credentials.localId);
   await auth.waitFor({ state: "hidden", timeout: 20000 });
+  await page
+    .locator("input[type=file]")
+    .nth(1)
+    .setInputFiles({ name: "car.png", mimeType: "image/png", buffer: rim });
+  await page
+    .locator('.wheel-overlay svg[data-load-state="ready"]')
+    .first()
+    .waitFor();
+  assert.equal(
+    await page.locator('.wheel-overlay svg[data-load-state="ready"]').count(),
+    2,
+  );
+  assert.equal(direct, 0);
+
   assert.equal(
     await page.getByRole("button", { name: "Admin", exact: true }).count(),
     0,

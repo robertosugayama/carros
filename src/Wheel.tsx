@@ -26,8 +26,10 @@ export default function Wheel({
   const photos = usePhotoCatalog();
   const asset = photo || findPhoto(photos, model, finish, size);
   const [rendered, setRendered] = useState("");
+  const [error, setError] = useState("");
   useEffect(() => {
     let cancelled = false;
+    setError("");
     if (!asset) {
       setRendered("");
       return;
@@ -37,7 +39,10 @@ export default function Wheel({
       .then((value) => {
         if (!cancelled) setRendered(value);
       })
-      .catch(() => {});
+      .catch((cause) => {
+        if (!cancelled)
+          setError(cause.message || "Não foi possível carregar a roda.");
+      });
     return () => {
       cancelled = true;
     };
@@ -62,8 +67,29 @@ export default function Wheel({
       aria-label={`${asset.origin === "generated" ? "Imagem gerada por IA de" : "Fotografia de"} ${asset.name || (typeof model === "number" ? models[model]?.name : undefined) || "Roda enviada"}, aro ${size}, ${finishes[finish]?.[0]}`}
       data-tyre-profile={tyreProfile}
       data-rim-size={size}
+      aria-busy={!rendered && !error}
+      data-load-state={error ? "error" : rendered ? "ready" : "loading"}
       style={{ width: "100%", height: "100%", display: "block" }}
     >
+      {!error && !rendered && (
+        <text x="500" y="480" textAnchor="middle" fontSize="65" fill="#536345">
+          Carregando…
+        </text>
+      )}
+      {error && (
+        <>
+          <title>{error}</title>
+          <text
+            x="500"
+            y="480"
+            textAnchor="middle"
+            fontSize="65"
+            fill="#91452d"
+          >
+            Imagem indisponível
+          </text>
+        </>
+      )}
       <defs>
         <clipPath id={id}>
           <circle cx="500" cy="500" r={499} />

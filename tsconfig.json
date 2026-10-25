@@ -23,6 +23,7 @@
     "wheelBackground.ts",
     "wheelExtraction.ts",
     "storageUpload.ts",
+    "storageRead.ts",
     "aiErrors.ts",
     "geminiGateway.ts",
     "database.ts",

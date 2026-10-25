@@ -104,21 +104,30 @@ try {
   await upload
     .getByLabel("Nome da roda", { exact: true })
     .fill("Roda particular de teste");
+  await upload.getByLabel("Nome do fabricante").fill("Fabricante teste");
+  const automaticTreatment = page.waitForResponse((r) =>
+    r.url().endsWith("/api/gemini/edit-wheel"),
+  );
   await upload.locator("input[type=file]").setInputFiles({
     name: "test-only.png",
     mimeType: "image/png",
     buffer: Buffer.from(fixture, "base64"),
   });
-  await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith("/api/gemini/edit-wheel")),
-    upload.getByRole("button", { name: "Tratar foto com IA" }).click(),
-  ]);
-  await page
-    .getByRole("status")
+  await automaticTreatment;
+  await upload
+    .getByRole("alert")
     .filter({ hasText: "Tratamento por IA não habilitado" })
     .waitFor();
+  assert.equal(await upload.getByRole("slider").count(), 0);
+  assert.equal(await upload.getByRole("checkbox").count(), 0);
+  assert.equal(
+    await upload
+      .getByRole("button", { name: "Salvar roda no catálogo" })
+      .isDisabled(),
+    true,
+  );
+  assert.ok((await upload.boundingBox()).width <= 540);
   // Simulate a successful provider reply to verify preview/review UX only.
-  await upload.locator("input[type=checkbox]").check();
   await page.route("**/api/gemini/edit-wheel", (route) =>
     route.fulfill({
       status: 200,
@@ -129,23 +138,25 @@ try {
       }),
     }),
   );
-  await upload.getByRole("button", { name: "Tratar foto com IA" }).click();
-  await upload
-    .getByText("Imagem tratada por IA. Confira o desenho e o acabamento.", {
-      exact: true,
-    })
-    .waitFor();
-  assert.equal(await upload.locator("input[type=checkbox]").isChecked(), false);
+  await upload.getByRole("button", { name: "Tentar novamente" }).click();
+  await upload.getByAltText("Roda preparada por IA para o catálogo").waitFor();
+  await page.screenshot({ path: "/tmp/carros-wheel-upload-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok((await upload.boundingBox()).width <= 390);
+  await page.screenshot({ path: "/tmp/carros-wheel-upload-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.unroute("**/api/gemini/edit-wheel");
-  await upload.locator("input[type=checkbox]").check();
   const savePrivate = page.waitForResponse(
     (r) =>
       r.url().endsWith("/api/my/photos") && r.request().method() === "POST",
   );
-  await upload
-    .getByRole("button", { name: "Salvar imagem no catálogo" })
-    .click();
-  assert.equal((await savePrivate).status(), 201);
+  await upload.getByRole("button", { name: "Salvar roda no catálogo" }).click();
+  const savedResponse = await savePrivate;
+  assert.equal(savedResponse.status(), 201);
+  const savedWheel = await savedResponse.json();
+  assert.equal(savedWheel.credit, "Fabricante teste");
+  assert.equal(savedWheel.kind, "rim");
+  assert.equal(savedWheel.origin, "generated");
   await upload.waitFor({ state: "hidden" });
   await page
     .getByRole("heading", { name: "Roda particular de teste", exact: true })

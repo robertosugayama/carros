@@ -66,3 +66,85 @@ test("cor da pinça conserva relação de sombra e mapeia para o azul escolhido"
   assert.equal(hexHue("#ff0000"), 0);
   assert.equal(hexHue("#0000ff"), 240);
 });
+
+test("preparo corrige perspectiva com foto inteira e normaliza contorno transparente", async () => {
+  const input = await sharp({
+    create: { width: 320, height: 180, channels: 3, background: "#888" },
+  })
+    .png()
+    .toBuffer();
+  const wheel = await sharp({
+    create: { width: 100, height: 100, channels: 4, background: "#808080" },
+  })
+    .extend({
+      top: 40,
+      bottom: 40,
+      left: 40,
+      right: 40,
+      background: "#00000000",
+    })
+    .png()
+    .toBuffer();
+  const output = await editWheelImage(
+    "data:image/png;base64," + input.toString("base64"),
+    { action: "prepare", kind: "rim" },
+    async (request) => {
+      const prompt = JSON.stringify(request.contents);
+      assert.match(prompt, /correct camera perspective/);
+      assert.match(prompt, /Extract ONLY the metal rim/);
+      assert.match(prompt, /exact product identity/);
+      return {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: "image/png",
+                    data: wheel.toString("base64"),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      };
+    },
+  );
+  const metadata = await sharp(
+    Buffer.from(output.split(",")[1], "base64"),
+  ).metadata();
+  assert.equal(metadata.width, 800);
+  assert.equal(metadata.height, 800);
+  const stats = await sharp(
+    Buffer.from(output.split(",")[1], "base64"),
+  ).stats();
+  assert.ok(
+    stats.channels[0].mean > 110,
+    "empty alpha margins should be removed before resizing",
+  );
+  await assert.rejects(
+    () =>
+      editWheelImage(
+        "data:image/png;base64," + input.toString("base64"),
+        { action: "prepare", kind: "rim" },
+        async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: "image/png",
+                      data: input.toString("base64"),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    /não removeu o fundo/,
+  );
+});

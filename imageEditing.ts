@@ -32,7 +32,7 @@ export async function editWheelImage(
     throw Error("Formato de imagem não permitido.");
   const instruction =
     options.action === "prepare"
-      ? `Prepare this supplied automotive ${options.kind === "rim" ? "alloy rim only" : "complete wheel and tire"} photograph for a wheel fitting app. Preserve the exact product design, spoke count, finish and proportions. Remove the surrounding background to transparent, center the single wheel in a square image and tightly crop around its circular outer edge. Keep real material texture and natural studio shading. Do not introduce logos, brands, spokes, brakes or tire details not present. If multiple wheels or an oblique view prevent faithful extraction, return text explaining that a single frontal wheel photograph is required instead of inventing a different product.`
+      ? `Prepare this supplied automotive ${options.kind === "rim" ? "alloy rim only" : "complete wheel and tire"} photograph for realistic compositing on a car. Automatically correct camera perspective and foreshortening: render the photographed wheel face head-on, with its circular outer edge perfectly round, hub centered and all spokes proportionally aligned. Remove visible barrel depth from an oblique view. Preserve the exact product identity, spoke count, spoke geometry, finish, logos already present, texture and natural material shading. ${options.kind === "rim" ? "Extract ONLY the metal rim, removing any surrounding tire so that the car photo retains its own tire." : "Preserve the complete tire and rim assembly."} Remove the surrounding background to genuine alpha transparency, including visible background in openings between spokes; never use a checkerboard or a solid backdrop. Center the complete wheel in a square image, tightly framing the outer edge without clipping. Do not invent spokes, brand marks, brakes or hidden product details. Correct angled photos when the visible face provides enough detail. If severe occlusion, extreme angle, blur or multiple wheels prevent faithful correction, return only a brief explanation instead of inventing a different product. Do not ask the user to crop, center or adjust the wheel manually.`
       : `Edit ONLY the brake components behind the spokes in this exact supplied wheel photograph. Preserve tire, wheel spokes, finish, geometry, placement, camera and transparent background exactly. Repaint the brake caliper ${calipers[options.caliper!]?.[0]} (${calipers[options.caliper!]?.[1]}) preserving metallic shading, texture and occlusion. Make the brake disc ${options.discStyle === "solid" ? "smooth solid brushed steel WITHOUT ANY drilled holes or slots" : "realistic drilled brushed steel with small cooling holes"}. Never paint over spokes. Never alter wheel shape. Keep square front-on image and transparent exterior.`;
   const result = await generate({
     model: process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
@@ -58,12 +58,22 @@ export async function editWheelImage(
     )?.inlineData;
   if (!part?.data || part.data.length > 16000000)
     throw Error(
-      "A IA não retornou uma imagem utilizável. Escolha uma foto frontal de uma única roda.",
+      "A IA não conseguiu preparar esta foto com fidelidade. Tente outra foto mais nítida de uma única roda.",
     );
-  const buffer = await sharp(Buffer.from(part.data, "base64"), {
+  let processed = sharp(Buffer.from(part.data, "base64"), {
     limitInputPixels: 25000000,
-  })
-    .rotate()
+  }).rotate();
+  if (options.action === "prepare") {
+    const metadata = await processed.metadata();
+    const stats = await processed.stats();
+    if (!metadata.hasAlpha || stats.isOpaque)
+      throw Error(
+        "A IA não removeu o fundo corretamente. Tente o tratamento novamente.",
+      );
+    // Normalize the alpha bounds after AI correction, without asking for manual crop.
+    processed = processed.trim({ background: "#00000000", threshold: 10 });
+  }
+  const buffer = await processed
     .resize(800, 800, {
       fit: "contain",
       background: { r: 0, g: 0, b: 0, alpha: 0 },

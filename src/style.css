@@ -1742,7 +1742,7 @@ label > select {
   position: relative;
   background: #fff;
   border-radius: 18px;
-  width: min(850px, 96vw);
+  width: min(540px, 96vw);
   max-height: 90vh;
   overflow: auto;
   padding: 25px;
@@ -1837,4 +1837,99 @@ label > select {
   margin: 0;
   border: 0;
   min-width: 0;
+}
+
+/* Compact automatic wheel intake, shared by the studio and admin catalogue. */
+.compact-photo-upload {
+  max-width: 540px;
+}
+.compact-photo-upload .section-title {
+  margin-bottom: 14px;
+}
+.compact-photo-upload .section-title h2 {
+  font-size: 22px;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+.compact-photo-upload p {
+  color: #4d5e41;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.compact-photo-upload label {
+  font-size: 15px;
+}
+.compact-photo-upload input,
+.compact-photo-upload select {
+  margin-top: 6px;
+  min-height: 44px;
+}
+.wheel-upload-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 14px;
+  margin: 12px 0;
+}
+.compact-photo-upload .file-label {
+  padding: 12px;
+  margin: 12px 0;
+  font-size: 15px;
+}
+.compact-photo-upload .file-label input {
+  min-height: auto;
+  margin-top: 0;
+}
+.compact-photo-upload .primary {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 46px;
+}
+.wheel-auto-preview {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  background: #f7f9f4;
+}
+.wheel-auto-preview img {
+  display: block;
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  margin: 0 auto;
+  background: #e8ece4;
+  border-radius: 10px;
+}
+.wheel-auto-preview p {
+  margin: 6px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.wheel-auto-preview [role="alert"] {
+  color: #a52b22;
+}
+.wheel-upload-spinner {
+  animation: wheel-upload-spin 1s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes wheel-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wheel-upload-spinner {
+    animation: none;
+  }
+}
+@media (max-width: 480px) {
+  .upload-modal {
+    padding: 18px 10px;
+  }
+  .wheel-upload-fields {
+    grid-template-columns: minmax(0, 1fr) 100px;
+    gap: 10px;
+  }
 }

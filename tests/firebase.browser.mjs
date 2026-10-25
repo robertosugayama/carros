@@ -104,16 +104,24 @@ try {
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6zJkAAAAASUVORK5CYII=",
     "base64",
   );
+  const request = page.waitForResponse((r) =>
+    r.url().endsWith("/api/gemini/edit-wheel"),
+  );
   await upload.locator("input[type=file]").setInputFiles({
     name: "test.png",
     mimeType: "image/png",
     buffer: fixture,
   });
-  const request = page.waitForResponse((r) =>
-    r.url().endsWith("/api/gemini/edit-wheel"),
-  );
-  await upload.getByRole("button", { name: "Tratar foto com IA" }).click();
   assert.equal((await request).status(), 503);
+  await upload.getByRole("alert").waitFor();
+  assert.equal(await upload.getByRole("slider").count(), 0);
+  assert.equal(
+    await upload
+      .getByRole("button", { name: "Salvar roda no catálogo" })
+      .isDisabled(),
+    true,
+  );
+  assert.ok((await upload.boundingBox()).width <= 390);
   const invalid = await page.request.post(base + "/api/gemini/edit-wheel", {
     headers: { Authorization: "Bearer invalid-test-token" },
     data: {},
@@ -129,7 +137,22 @@ try {
     data: {},
   });
   assert.equal(blocked.status(), 403);
-  const deniedRules = await fetch("http://127.0.0.1:8089/emulator/v1/projects/demo-autotuner:securityRules", { method: "PUT", body: JSON.stringify({ rules: { files: [{ content: "rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read, write: if false; } } }" }] } }) });
+  const deniedRules = await fetch(
+    "http://127.0.0.1:8089/emulator/v1/projects/demo-autotuner:securityRules",
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        rules: {
+          files: [
+            {
+              content:
+                "rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read, write: if false; } } }",
+            },
+          ],
+        },
+      }),
+    },
+  );
   assert.equal(deniedRules.ok, true);
   const deniedContext = await browser.newContext();
   const deniedPage = await deniedContext.newPage();
@@ -138,8 +161,12 @@ try {
   const deniedLogin = deniedPage.getByRole("dialog");
   await deniedLogin.getByLabel("E-mail").fill("firebase-ui@example.test");
   await deniedLogin.getByLabel("Senha").fill("firebase-ui-test-123");
-  await deniedLogin.getByRole("button", { name: "Entrar", exact: true }).click();
-  await deniedPage.getByText(/Sua conta foi autenticada, mas o Firestore negou/).waitFor();
+  await deniedLogin
+    .getByRole("button", { name: "Entrar", exact: true })
+    .click();
+  await deniedPage
+    .getByText(/Sua conta foi autenticada, mas o Firestore negou/)
+    .waitFor();
   await deniedContext.close();
   assert.deepEqual(errors, []);
   console.log(

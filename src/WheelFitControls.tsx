@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { Placement } from "./catalog";
+const resizeRepeat = { delay: 200, interval: 50 };
 export default function WheelFitControls({
   wheels,
   selected,
@@ -42,6 +43,7 @@ export default function WheelFitControls({
   function start(
     event: React.PointerEvent<HTMLButtonElement>,
     action: () => void,
+    timing = { delay: 350, interval: 85 },
   ) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
@@ -57,22 +59,23 @@ export default function WheelFitControls({
     const repeat = () => {
       if (!active.current) return;
       action();
-      timer.current = setTimeout(repeat, 85);
+      timer.current = setTimeout(repeat, timing.interval);
     };
-    timer.current = setTimeout(repeat, 350);
+    timer.current = setTimeout(repeat, timing.delay);
   }
   const button = (
     label: string,
     icon: React.ReactNode,
     action: () => void,
     position?: string,
+    timing?: { delay: number; interval: number },
   ) => (
     <button
       type="button"
       aria-label={label}
       title={label}
       className={position}
-      onPointerDown={(e) => start(e, action)}
+      onPointerDown={(e) => start(e, action, timing)}
       onPointerUp={stop}
       onPointerCancel={() => {
         stop();
@@ -169,14 +172,22 @@ export default function WheelFitControls({
         role="group"
         aria-label="Tamanho das duas rodas"
       >
-        {button("Diminuir as duas rodas", <Minus size={20} />, () =>
-          onResize(-1),
+        {button(
+          "Diminuir as duas rodas",
+          <Minus size={20} />,
+          () => onResize(-1),
+          undefined,
+          resizeRepeat,
         )}
         <output aria-label="Tamanho das rodas">
           {Math.round(wheels[0].diameter * 100)}%
         </output>
-        {button("Aumentar as duas rodas", <Plus size={20} />, () =>
-          onResize(1),
+        {button(
+          "Aumentar as duas rodas",
+          <Plus size={20} />,
+          () => onResize(1),
+          undefined,
+          resizeRepeat,
         )}
       </div>
     </>

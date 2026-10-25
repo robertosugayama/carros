@@ -331,7 +331,7 @@ function App() {
   function resizeBoth(delta: number) {
     setEditing(true);
     setWheels((old) =>
-      equalizeWheels(old, clampDiameter(old[0].diameter + delta * 0.002)),
+      equalizeWheels(old, clampDiameter(old[0].diameter + delta * 0.005)),
     );
   }
   function pointer(e: React.PointerEvent) {

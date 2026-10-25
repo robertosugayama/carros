@@ -1,10 +1,10 @@
-import { useId, useState, useEffect } from "react";
+import { memo, useId, useState, useEffect } from "react";
 import { type DiscStyle } from "./brakeImages";
 import { models, finishes } from "./catalog";
 import { assembledWheelImage } from "./wheelAssembly";
 import { type TyreProfile } from "./tyres";
 import { findPhoto, usePhotoCatalog, type WheelPhoto } from "./PhotoCatalog";
-export default function Wheel({
+function Wheel({
   model = 0,
   finish = 0,
   size = 18,
@@ -107,3 +107,5 @@ export default function Wheel({
     </svg>
   );
 }
+
+export default memo(Wheel);

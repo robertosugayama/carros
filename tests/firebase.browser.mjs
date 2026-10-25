@@ -238,8 +238,8 @@ try {
     "ajustes começam recolhidos",
   );
   const toolsClosed = await page
-    .locator(".config")
-    .evaluate((el) => el.clientHeight);
+    .locator(".editor")
+    .evaluate((el) => innerHeight - el.getBoundingClientRect().height);
   await page.getByRole("button", { name: "Ajustar rodas", exact: true }).tap();
   await page
     .getByRole("button", { name: "Mover roda para cima", exact: true })
@@ -262,8 +262,8 @@ try {
     })
     .click();
   const toolsReturned = await page
-    .locator(".config")
-    .evaluate((el) => el.clientHeight);
+    .locator(".editor")
+    .evaluate((el) => innerHeight - el.getBoundingClientRect().height);
   assert.ok(
     Math.abs(toolsReturned - toolsClosed) < 2,
     "voltar devolve todo o espaço às ferramentas",
@@ -280,6 +280,11 @@ try {
     0,
   );
   const hiddenPhoto = await page.locator(".scene").boundingBox();
+  const frameAfterClose = await page.locator(".viewport").boundingBox();
+  assert.ok(
+    Math.abs(frameAfterClose.y - fullFrame.y) < 1,
+    "fechar ajustes não desloca a foto",
+  );
   assert.ok(Math.abs(hiddenPhoto.width - fullPhoto.width) < 1);
   await page
     .getByRole("button", { name: "Mostrar ajustes", exact: true })
@@ -306,7 +311,7 @@ try {
     .first()
     .evaluate((el) => el.style.width);
   assert.ok(
-    Math.abs(parseFloat(afterTap) - parseFloat(beforeTap) - 0.2) < 0.001,
+    Math.abs(parseFloat(afterTap) - parseFloat(beforeTap) - 0.5) < 0.001,
     "toque aumenta uma vez, sem duplicação",
   );
   await page
@@ -330,9 +335,7 @@ try {
   const fixedControlsBefore = await page
     .locator(".mobile-fixed-controls")
     .boundingBox();
-  await page.locator(".config").evaluate((el) => {
-    el.scrollTop = el.scrollHeight;
-  });
+  await page.evaluate(() => window.scrollBy(0, 300));
   const frozenAfter = await page.locator(".viewport").boundingBox();
   const fixedControlsAfter = await page
     .locator(".mobile-fixed-controls")
@@ -354,10 +357,20 @@ try {
       .count(),
     0,
   );
-  assert.ok(await page.locator(".config").evaluate((el) => el.scrollTop > 0));
-  await page.locator(".config").evaluate((el) => {
-    el.scrollTop = 0;
-  });
+  assert.ok(await page.evaluate(() => window.scrollY > 0));
+  assert.ok(
+    await page
+      .locator(".config,.model-grid")
+      .evaluateAll((elements) =>
+        elements.every(
+          (el) => !["auto", "scroll"].includes(getComputedStyle(el).overflowY),
+        ),
+      ),
+    "sem rolagem dentro da rolagem",
+  );
+  await page
+    .locator(".workspace")
+    .evaluate((el) => el.scrollIntoView({ block: "start" }));
   await page
     .getByRole("button", { name: "Mover roda para esquerda", exact: true })
     .tap();
@@ -391,12 +404,18 @@ try {
     afterHold,
     "soltar o controle interrompe o movimento",
   );
-  const frozenTools = await page.locator(".config").evaluate((el) => ({
-    scroll: el.scrollTop,
-    client: el.clientHeight,
-    total: el.scrollHeight,
+  const frozenTools = await page.evaluate(() => ({
+    client: document.scrollingElement.clientHeight,
+    total: document.scrollingElement.scrollHeight,
   }));
   assert.ok(frozenTools.total > frozenTools.client);
+  await page.getByRole("button", { name: "Aumentar zoom", exact: true }).tap();
+  const zoomFrame = await page.locator(".viewport").boundingBox();
+  assert.ok(
+    zoomFrame.height < 844 * 0.65,
+    "zoom não ocupa o espaço inteiro das ferramentas",
+  );
+  await page.getByRole("button", { name: "Diminuir zoom", exact: true }).tap();
   await page
     .locator(".editor")
     .screenshot({ path: "/tmp/carros-mobile-editor.png" });

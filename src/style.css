@@ -2456,6 +2456,7 @@ label > select {
   /* Fit the frozen frame to the actual photo: no reserved green strip. */
   .workspace.has-car .viewport {
     height: auto;
+    max-height: calc(var(--stage-height) + 2px);
   }
   .mobile-fixed-controls.mobile-photo-controls {
     gap: 6px;
@@ -2525,4 +2526,34 @@ label > select {
   min-height: 44px;
   margin-top: 12px;
   font-size: 15px;
+}
+
+/* One list for mobile tools; catalogues no longer capture a second scroll. */
+@media (max-width: 780px) {
+  .workspace .config .model-grid {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+@media (max-width: 780px) and (orientation: portrait) {
+  .workspace.has-car {
+    overflow-anchor: none;
+    display: block;
+    height: auto;
+  }
+  .workspace.has-car .editor {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+  }
+  .workspace.has-car .config {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    margin-top: 8px;
+  }
 }

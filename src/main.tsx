@@ -6,8 +6,6 @@ import {
   ImagePlus,
   SlidersHorizontal,
   RotateCcw,
-  ZoomIn,
-  ZoomOut,
   ScanLine,
   Save,
   Download,
@@ -86,7 +84,6 @@ function App() {
     [angle, setAngle] = useState(20),
     [size, setSize] = useState(18),
     [tyreProfile, setTyreProfile] = useState<TyreProfile>("medium"),
-    [zoom, setZoom] = useState(1),
     [wheels, setWheels] = useState<Placement[]>(defaultWheels),
     [selected, setSelected] = useState(0),
     [before, setBefore] = useState(false),
@@ -283,7 +280,7 @@ function App() {
       setShowWheels(true);
       setBefore(false);
       setWheels(defaultWheels.map((w) => ({ ...w })));
-      setZoom(1);
+
       setEditing(true);
       notify(
         "Foto carregada. Use as setas na foto para posicionar cada roda e os botões + e − para ajustar as duas juntas.",
@@ -476,7 +473,7 @@ function App() {
   }
   function removeCar() {
     setImage("");
-    setZoom(1);
+
     setWheels(defaultWheels.map((w) => ({ ...w })));
     setBefore(false);
     notify(
@@ -609,7 +606,7 @@ function App() {
     setWheels(equalizeWheels(d.wheels));
     setNotes(d.notes || "");
     setProjectName(p.name);
-    setZoom(1);
+
     setTab("studio");
     requestAnimationFrame(() =>
       document.querySelector(".workspace")?.scrollIntoView({ block: "start" }),
@@ -828,7 +825,6 @@ function App() {
                   <button
                     onClick={() => {
                       setWheels(defaultWheels.map((w) => ({ ...w })));
-                      setZoom(1);
                     }}
                     aria-label="Restaurar posição das rodas"
                   >
@@ -839,10 +835,9 @@ function App() {
                   <div
                     className="scene-holder"
                     style={{
-                      width:
-                        carImage.src && zoom === 1
-                          ? "min(100%, calc(var(--photo-height, var(--stage-height)) * var(--car-ratio)))"
-                          : `${zoom * 100}%`,
+                      width: carImage.src
+                        ? "min(100%, calc(var(--photo-height, var(--stage-height)) * var(--car-ratio)))"
+                        : "100%",
                     }}
                   >
                     {!image && (
@@ -986,21 +981,6 @@ function App() {
                 )}
                 <div className="photo-footer">
                   <div className="canvas-toolbar">
-                    <div className="zoom-controls">
-                      <button
-                        onClick={() => setZoom(Math.max(1, zoom - 0.25))}
-                        aria-label="Diminuir zoom"
-                      >
-                        <ZoomOut size={17} />
-                      </button>
-                      <span>{Math.round(zoom * 100)}%</span>
-                      <button
-                        onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                        aria-label="Aumentar zoom"
-                      >
-                        <ZoomIn size={17} />
-                      </button>
-                    </div>
                     <button
                       className={editing ? "tool selected-tool" : "tool"}
                       onClick={() => {
@@ -1093,7 +1073,7 @@ function App() {
                     <Check size={16} /> Círculos perfeitos
                   </span>
                   <span>
-                    <Check size={16} /> Zoom sincronizado
+                    <Check size={16} /> Tamanho sincronizado
                   </span>
                   <span>
                     <Check size={16} /> Ajuste em tempo real

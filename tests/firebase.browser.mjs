@@ -460,13 +460,35 @@ try {
     total: document.scrollingElement.scrollHeight,
   }));
   assert.ok(frozenTools.total > frozenTools.client);
-  await page.getByRole("button", { name: "Aumentar zoom", exact: true }).tap();
-  const zoomFrame = await page.locator(".viewport").boundingBox();
-  assert.ok(
-    zoomFrame.height < 844 * 0.65,
-    "zoom não ocupa o espaço inteiro das ferramentas",
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Aumentar zoom", exact: true })
+      .count(),
+    0,
   );
-  await page.getByRole("button", { name: "Diminuir zoom", exact: true }).tap();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Diminuir zoom", exact: true })
+      .count(),
+    0,
+  );
+  const cards = await page
+    .locator(".config > section")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => parseFloat(getComputedStyle(node).borderTopWidth)),
+    );
+  assert.ok(
+    cards.every((width) => width >= 2),
+    "seções possuem bordas destacadas",
+  );
+  const compact = await page
+    .locator(".model-grid")
+    .evaluate((node) => ({
+      maxHeight: getComputedStyle(node).maxHeight,
+      columns: getComputedStyle(node).gridTemplateColumns.split(" ").length,
+    }));
+  assert.equal(compact.maxHeight, "none");
+  assert.equal(compact.columns, 4);
   await page
     .locator(".editor")
     .screenshot({ path: "/tmp/carros-mobile-editor.png" });

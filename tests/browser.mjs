@@ -289,7 +289,12 @@ try {
       .evaluate((el) => getComputedStyle(el).outlineStyle),
     "none",
   );
-  await page.getByRole("button", { name: "Aumentar zoom" }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Aumentar zoom", exact: true })
+      .count(),
+    0,
+  );
   left = await page.locator(".wheel-overlay").first().boundingBox();
   right = await page.locator(".wheel-overlay").last().boundingBox();
   assert.ok(Math.abs(left.width - right.width) < 1);

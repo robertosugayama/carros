@@ -2557,3 +2557,93 @@ label > select {
     margin-top: 8px;
   }
 }
+
+/* Section hierarchy and a compact, naturally growing wheel catalogue. */
+.config > section,
+.config > .save-area {
+  margin: 10px 8px;
+  padding: 16px 14px;
+  border: 2px solid #bac8a7;
+  border-left: 4px solid #91ad48;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px #293d1710;
+}
+.config .label-heading {
+  border-bottom: 1px solid #dce5d1;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+.config .label-heading h3 {
+  font-size: 14px;
+  color: #30452b;
+  font-weight: 700;
+}
+.config .label-heading h3 b {
+  display: grid;
+  place-items: center;
+  min-width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  background: #e5efcf;
+  color: #385420;
+  font-size: 12px;
+  font-weight: 700;
+}
+.config .tyre-options,
+.config .disc-options {
+  border: 1px solid #bdcba9;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fafcf6;
+}
+.config .tyre-options legend,
+.config .disc-options legend {
+  padding: 0 6px;
+  color: #364c2a;
+  font-weight: 700;
+}
+.photo-upload,
+.project,
+.maintenance-form,
+.maintenance-list article,
+.submission {
+  border: 2px solid #bac8a7;
+}
+.workspace .config .model-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  align-content: start;
+  gap: 6px;
+  max-height: none;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  padding-right: 0;
+}
+.workspace .config .model {
+  padding: 5px 3px;
+  gap: 3px;
+  align-items: center;
+  border-color: #cbd5bf;
+}
+.workspace .config .model svg {
+  max-width: 40px;
+  max-height: 40px;
+}
+.workspace .config .model > span {
+  font-size: 9px;
+  line-height: 1.25;
+}
+.workspace .config .model.active {
+  border-color: #6d8b30;
+  background: #edf5de;
+  box-shadow: inset 0 0 0 1px #6d8b30;
+}
+@media (max-width: 780px) {
+  .config > section,
+  .config > .save-area {
+    margin: 8px 6px;
+    padding: 14px 12px;
+  }
+}
